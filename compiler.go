@@ -20,10 +20,24 @@ const (
 	ModeMerged
 )
 
+// ObfuscationLevel defines the level of code obfuscation
+type ObfuscationLevel int
+
+const (
+	// ObfuscationNone - No obfuscation
+	ObfuscationNone ObfuscationLevel = iota
+	// ObfuscationBasic - Basic obfuscation (luac_mta -e)
+	ObfuscationBasic
+	// ObfuscationEnhanced - Enhanced obfuscation (luac_mta -e2, available from MTA 1.5.2-9.07903)
+	ObfuscationEnhanced
+	// ObfuscationMaximum - Maximum obfuscation (luac_mta -e3, available from MTA 1.5.6-9.18728)
+	ObfuscationMaximum
+)
+
 // CompilationOptions holds configuration for the compilation process
 type CompilationOptions struct {
-	// ObfuscationLevel: 0=none, 1=basic, 2=enhanced, 3=maximum
-	ObfuscationLevel int
+	// ObfuscationLevel defines the level of code obfuscation
+	ObfuscationLevel ObfuscationLevel
 	// StripDebug removes debug information
 	StripDebug bool
 	// SuppressDecompileWarning suppresses decompile warnings
@@ -370,12 +384,14 @@ func (c *CLICompiler) buildArgs(options CompilationOptions, outputPath string) [
 
 	// Obfuscation level
 	switch options.ObfuscationLevel {
-	case 1:
+	case ObfuscationBasic:
 		args = append(args, "-e")
-	case 2:
+	case ObfuscationEnhanced:
 		args = append(args, "-e2")
-	case 3:
+	case ObfuscationMaximum:
 		args = append(args, "-e3")
+	case ObfuscationNone:
+		// No obfuscation flag needed
 	}
 
 	// Suppress decompile warning
@@ -391,7 +407,7 @@ func (c *CLICompiler) buildArgs(options CompilationOptions, outputPath string) [
 // DefaultOptions returns sensible default compilation options
 func DefaultOptions() CompilationOptions {
 	return CompilationOptions{
-		ObfuscationLevel:         3,
+		ObfuscationLevel:         ObfuscationMaximum,
 		StripDebug:               true,
 		SuppressDecompileWarning: true,
 		Mode:                     ModeIndividual,
