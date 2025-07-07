@@ -411,7 +411,7 @@ func DefaultOptions() CompilationOptions {
 		StripDebug:               true,
 		SuppressDecompileWarning: true,
 		Mode:                     ModeIndividual,
-		OutputPath:               "compiled",
+		OutputPath:               "luac.out",
 	}
 }
 
