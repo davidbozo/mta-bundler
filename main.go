@@ -7,120 +7,87 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	outputFile     string
+	stripDebug     bool
+	obfuscateLevel int
+	suppressWarn   bool
+	showVersion    bool
+)
+
 var rootCmd = &cobra.Command{
-	Use:   "mta-bundler",
-	Short: "A CLI tool for compiling and bundling Lua files",
-	Long:  `MTA Bundler is a command-line tool for compiling individual Lua files or merging multiple Lua files into a single compiled output.`,
-}
+	Use:   "mta-bundler [input_path]",
+	Short: "MTA Lua Compiler - Compile and obfuscate Lua scripts for Multi Theft Auto",
+	Long: `MTA Lua Compiler is a tool for compiling and obfuscating Lua scripts 
+for Multi Theft Auto servers. It can process individual files, directories, 
+or meta.xml files to compile all referenced scripts.
 
-var compileCmd = &cobra.Command{
-	Use:   "compile [files...]",
-	Short: "Compile individual Lua files",
-	Long:  `Compile one or more Lua files individually, maintaining separate output files for each input.`,
-	Args:  cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		compiler, err := NewCLICompiler("")
-		if err != nil {
-			fmt.Printf("Error creating compiler: %v\n", err)
-			os.Exit(1)
-		}
-
-		fmt.Println("Compiling individual files...")
-		batchResult, err := compiler.Compile(args, DefaultOptions())
-		if err != nil {
-			fmt.Printf("Compilation completed with errors: %v\n", err)
-		}
-
-		fmt.Printf("Compilation Summary:\n")
-		fmt.Printf("  Total Time: %v\n", batchResult.TotalTime)
-		fmt.Printf("  Success: %d files\n", batchResult.SuccessCount)
-		fmt.Printf("  Errors: %d files\n", batchResult.ErrorCount)
-		fmt.Printf("\nDetailed Results:\n")
-
-		for _, result := range batchResult.Results {
-			status := "✓"
-			if !result.Success {
-				status = "✗"
-			}
-			fmt.Printf("  %s %s -> %s (%v)\n", status, result.InputFile, result.OutputFile, result.CompileTime)
-			if result.Error != nil {
-				fmt.Printf("    Error: %v\n", result.Error)
-			}
-		}
-	},
-}
-
-var mergeCmd = &cobra.Command{
-	Use:   "merge [files...] -o output",
-	Short: "Merge and compile multiple Lua files into a single output",
-	Long:  `Merge multiple Lua files and compile them into a single output file.`,
-	Args:  cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		output, _ := cmd.Flags().GetString("output")
-		if output == "" {
-			fmt.Println("Error: output file is required for merge command")
-			os.Exit(1)
-		}
-
-		compiler, err := NewCLICompiler("")
-		if err != nil {
-			fmt.Printf("Error creating compiler: %v\n", err)
-			os.Exit(1)
-		}
-
-		fmt.Println("Compiling merged file...")
-		mergedBatchResult, err := compiler.Compile(args, MergedOptions(output))
-		if err != nil {
-			fmt.Printf("Merged compilation failed: %v\n", err)
-			os.Exit(1)
-		}
-
-		if len(mergedBatchResult.Results) > 0 {
-			result := mergedBatchResult.Results[0]
-			fmt.Printf("Successfully created merged file: %s in %v\n", result.OutputFile, result.CompileTime)
-		}
-	},
-}
-
-var singleCmd = &cobra.Command{
-	Use:   "single <input> <output>",
-	Short: "Compile a single Lua file",
-	Long:  `Compile a single Lua file to a specified output file.`,
-	Args:  cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		input := args[0]
-		output := args[1]
-
-		compiler, err := NewCLICompiler("")
-		if err != nil {
-			fmt.Printf("Error creating compiler: %v\n", err)
-			os.Exit(1)
-		}
-
-		fmt.Printf("Compiling %s to %s...\n", input, output)
-		result, err := compiler.CompileFile(input, output, DefaultOptions())
-		if err != nil {
-			fmt.Printf("Single file compilation failed: %v\n", err)
-			os.Exit(1)
-		}
-
-		fmt.Printf("Successfully compiled %s -> %s in %v\n",
-			result.InputFile, result.OutputFile, result.CompileTime)
-	},
+Examples:
+  mta-bundler script.lua                    # Compile single file
+  mta-bundler -o compiled.lua script.lua    # Compile with custom output
+  mta-bundler -e3 script.lua                # Compile with obfuscation level 3
+  mta-bundler -s -e2 script.lua             # Strip debug info and obfuscate level 2
+  mta-bundler /path/to/resource/            # Process directory (looks for meta.xml)
+  mta-bundler /path/to/meta.xml             # Process meta.xml file directly`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: runCompiler,
 }
 
 func init() {
-	mergeCmd.Flags().StringP("output", "o", "", "Output file for merged compilation (required)")
-	mergeCmd.MarkFlagRequired("output")
+	rootCmd.Flags().StringVarP(&outputFile, "output", "o", "", "output to file 'name' (default is 'luac.out' or original filename with .luac extension)")
+	rootCmd.Flags().BoolVarP(&stripDebug, "strip", "s", false, "strip debug information")
+	rootCmd.Flags().IntVarP(&obfuscateLevel, "obfuscate", "e", 0, "obfuscation level (0-3)")
+	rootCmd.Flags().BoolVarP(&suppressWarn, "suppress", "d", false, "suppress decompile warning")
+	rootCmd.Flags().BoolVarP(&showVersion, "version", "v", false, "show version information")
+	rootCmd.MarkFlagRequired("output")
 
-	rootCmd.AddCommand(compileCmd)
-	rootCmd.AddCommand(mergeCmd)
-	rootCmd.AddCommand(singleCmd)
+	// Add support for -e2 and -e3 flags
+	rootCmd.Flags().BoolP("obfuscate2", "2", false, "obfuscation level 2 (equivalent to -e2)")
+	rootCmd.Flags().BoolP("obfuscate3", "3", false, "obfuscation level 3 (equivalent to -e3)")
 }
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func runCompiler(cmd *cobra.Command, args []string) error {
+	if showVersion {
+		fmt.Println("mta-bundler version 1.0.0")
+		fmt.Println("MTA Lua Compiler for Multi Theft Auto")
+		return nil
+	}
+
+	// Handle obfuscation level flags
+	if obfuscate2, _ := cmd.Flags().GetBool("obfuscate2"); obfuscate2 {
+		obfuscateLevel = 2
+	}
+	if obfuscate3, _ := cmd.Flags().GetBool("obfuscate3"); obfuscate3 {
+		obfuscateLevel = 3
+	}
+
+	// Validate obfuscation level
+	if obfuscateLevel < 0 || obfuscateLevel > 3 {
+		return fmt.Errorf("invalid obfuscation level: %d (must be 0-3)", obfuscateLevel)
+	}
+
+	if len(args) == 0 {
+		return fmt.Errorf("no input files given")
+	}
+
+	inputPath := args[0]
+
+	// Print parsed arguments for demonstration
+	fmt.Printf("Input path: %s\n", inputPath)
+	fmt.Printf("Output file: %s\n", outputFile)
+	fmt.Printf("Strip debug: %t\n", stripDebug)
+	fmt.Printf("Obfuscate level: %d\n", obfuscateLevel)
+	fmt.Printf("Suppress warnings: %t\n", suppressWarn)
+
+	// TODO: Implement actual compilation logic here
+	fmt.Println("Compilation logic would go here...")
+
+	return nil
 }
