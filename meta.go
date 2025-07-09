@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/xml"
+	"fmt"
+	"os"
 	"path/filepath"
 )
 
@@ -55,6 +57,56 @@ type FileReference struct {
 	RelativePath  string // Original relative path from meta.xml
 }
 
+// Resource represents an MTA resource with its meta.xml and all file references
+type Resource struct {
+	MetaXMLPath string          // Path to the meta.xml file
+	BaseDir     string          // Base directory of the resource
+	Name        string          // Resource name (derived from directory name)
+	Meta        Meta            // Parsed meta.xml structure
+	Files       []FileReference // All file references from meta.xml
+}
+
+// NewResource creates a new Resource from a meta.xml file path
+func NewResource(metaXMLPath string) (*Resource, error) {
+	// Read the meta.xml file
+	data, err := os.ReadFile(metaXMLPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read meta.xml: %w", err)
+	}
+
+	// Parse the XML
+	var meta Meta
+	err = xml.Unmarshal(data, &meta)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse meta.xml: %w", err)
+	}
+
+	// Get absolute path
+	absPath, err := filepath.Abs(metaXMLPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	// Create resource
+	baseDir := filepath.Dir(absPath)
+	resourceName := filepath.Base(baseDir)
+
+	resource := &Resource{
+		MetaXMLPath: absPath,
+		BaseDir:     baseDir,
+		Name:        resourceName,
+		Meta:        meta,
+	}
+
+	// Get all file references
+	resource.Files, err = GetAllFiles(meta, absPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get file references: %w", err)
+	}
+
+	return resource, nil
+}
+
 // GetAllFiles extracts all file references from Meta structure and returns their full paths
 func GetAllFiles(meta Meta, metaXMLPath string) ([]FileReference, error) {
 	var files []FileReference
@@ -64,62 +116,52 @@ func GetAllFiles(meta Meta, metaXMLPath string) ([]FileReference, error) {
 
 	// Process Script files
 	for _, script := range meta.Scripts {
-		if script.Src != "" {
-			fullPath := filepath.Join(baseDir, script.Src)
-			files = append(files, FileReference{
-				FullPath:      fullPath,
-				ReferenceType: "Script",
-				RelativePath:  script.Src,
-			})
-		}
+		fullPath := filepath.Join(baseDir, script.Src)
+		files = append(files, FileReference{
+			FullPath:      fullPath,
+			ReferenceType: "Script",
+			RelativePath:  script.Src,
+		})
 	}
 
 	// Process Map files
 	for _, mapFile := range meta.Maps {
-		if mapFile.Src != "" {
-			fullPath := filepath.Join(baseDir, mapFile.Src)
-			files = append(files, FileReference{
-				FullPath:      fullPath,
-				ReferenceType: "Map",
-				RelativePath:  mapFile.Src,
-			})
-		}
+		fullPath := filepath.Join(baseDir, mapFile.Src)
+		files = append(files, FileReference{
+			FullPath:      fullPath,
+			ReferenceType: "Map",
+			RelativePath:  mapFile.Src,
+		})
 	}
 
 	// Process Config files
 	for _, config := range meta.Configs {
-		if config.Src != "" {
-			fullPath := filepath.Join(baseDir, config.Src)
-			files = append(files, FileReference{
-				FullPath:      fullPath,
-				ReferenceType: "Config",
-				RelativePath:  config.Src,
-			})
-		}
+		fullPath := filepath.Join(baseDir, config.Src)
+		files = append(files, FileReference{
+			FullPath:      fullPath,
+			ReferenceType: "Config",
+			RelativePath:  config.Src,
+		})
 	}
 
 	// Process File entries
 	for _, file := range meta.Files {
-		if file.Src != "" {
-			fullPath := filepath.Join(baseDir, file.Src)
-			files = append(files, FileReference{
-				FullPath:      fullPath,
-				ReferenceType: "File",
-				RelativePath:  file.Src,
-			})
-		}
+		fullPath := filepath.Join(baseDir, file.Src)
+		files = append(files, FileReference{
+			FullPath:      fullPath,
+			ReferenceType: "File",
+			RelativePath:  file.Src,
+		})
 	}
 
 	// Process HTML files
 	for _, html := range meta.HTMLs {
-		if html.Src != "" {
-			fullPath := filepath.Join(baseDir, html.Src)
-			files = append(files, FileReference{
-				FullPath:      fullPath,
-				ReferenceType: "HTML",
-				RelativePath:  html.Src,
-			})
-		}
+		fullPath := filepath.Join(baseDir, html.Src)
+		files = append(files, FileReference{
+			FullPath:      fullPath,
+			ReferenceType: "HTML",
+			RelativePath:  html.Src,
+		})
 	}
 
 	return files, nil
