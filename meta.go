@@ -5,6 +5,17 @@ import (
 	"path/filepath"
 )
 
+// ReferenceType represents how a file was referenced in meta.xml
+type ReferenceType int
+
+const (
+	ReferenceTypeScript ReferenceType = iota
+	ReferenceTypeMap
+	ReferenceTypeConfig
+	ReferenceTypeFile
+	ReferenceTypeHTML
+)
+
 // Meta represents the root meta.xml structure with only file-related fields
 type Meta struct {
 	XMLName xml.Name `xml:"meta"`
@@ -50,9 +61,9 @@ type HTML struct {
 
 // FileReference represents a file reference with its full path and reference type
 type FileReference struct {
-	FullPath      string // Absolute file path
-	ReferenceType string // How the file was referenced (Script, Map, Config, File, HTML)
-	RelativePath  string // Original relative path from meta.xml
+	FullPath      string        // Absolute file path
+	ReferenceType ReferenceType // How the file was referenced (Script, Map, Config, File, HTML)
+	RelativePath  string        // Original relative path from meta.xml
 }
 
 // GetAllFiles extracts all file references from Meta structure and returns their full paths
@@ -67,7 +78,7 @@ func GetAllFiles(meta Meta, metaXMLPath string) ([]FileReference, error) {
 		fullPath := filepath.Join(baseDir, script.Src)
 		files = append(files, FileReference{
 			FullPath:      fullPath,
-			ReferenceType: "Script",
+			ReferenceType: ReferenceTypeScript,
 			RelativePath:  script.Src,
 		})
 	}
@@ -77,7 +88,7 @@ func GetAllFiles(meta Meta, metaXMLPath string) ([]FileReference, error) {
 		fullPath := filepath.Join(baseDir, mapFile.Src)
 		files = append(files, FileReference{
 			FullPath:      fullPath,
-			ReferenceType: "Map",
+			ReferenceType: ReferenceTypeMap,
 			RelativePath:  mapFile.Src,
 		})
 	}
@@ -87,7 +98,7 @@ func GetAllFiles(meta Meta, metaXMLPath string) ([]FileReference, error) {
 		fullPath := filepath.Join(baseDir, config.Src)
 		files = append(files, FileReference{
 			FullPath:      fullPath,
-			ReferenceType: "Config",
+			ReferenceType: ReferenceTypeConfig,
 			RelativePath:  config.Src,
 		})
 	}
@@ -97,7 +108,7 @@ func GetAllFiles(meta Meta, metaXMLPath string) ([]FileReference, error) {
 		fullPath := filepath.Join(baseDir, file.Src)
 		files = append(files, FileReference{
 			FullPath:      fullPath,
-			ReferenceType: "File",
+			ReferenceType: ReferenceTypeFile,
 			RelativePath:  file.Src,
 		})
 	}
@@ -107,7 +118,7 @@ func GetAllFiles(meta Meta, metaXMLPath string) ([]FileReference, error) {
 		fullPath := filepath.Join(baseDir, html.Src)
 		files = append(files, FileReference{
 			FullPath:      fullPath,
-			ReferenceType: "HTML",
+			ReferenceType: ReferenceTypeHTML,
 			RelativePath:  html.Src,
 		})
 	}

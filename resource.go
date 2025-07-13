@@ -63,7 +63,7 @@ func NewResource(metaXMLPath string) (*Resource, error) {
 func (r *Resource) GetLuaFiles() []FileReference {
 	var luaFiles []FileReference
 	for _, fileRef := range r.Files {
-		if fileRef.ReferenceType == "Script" && strings.ToLower(filepath.Ext(fileRef.FullPath)) == ".lua" {
+		if fileRef.ReferenceType == ReferenceTypeScript && strings.ToLower(filepath.Ext(fileRef.FullPath)) == ".lua" {
 			luaFiles = append(luaFiles, fileRef)
 		}
 	}
