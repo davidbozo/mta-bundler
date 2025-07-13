@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -226,7 +227,7 @@ func (r *Resource) calculateOutputPath(absInputPath, outputFile, baseOutputDir s
 	return outputPath, nil
 }
 
-// copyMetaFile copies the meta.xml file to the output directory
+// copyMetaFile copies the meta.xml file to the output directory and updates lua file references to luac
 func (r *Resource) copyMetaFile(baseOutputDir, absInputPath, outputFile string) error {
 	// Calculate the output path for meta.xml
 	var outputPath string
@@ -253,12 +254,45 @@ func (r *Resource) copyMetaFile(baseOutputDir, absInputPath, outputFile string) 
 		return fmt.Errorf("failed to create output directory for meta.xml: %v", err)
 	}
 
-	// Copy the file
-	if err := copyFile(r.MetaXMLPath, outputPath); err != nil {
-		return fmt.Errorf("failed to copy meta.xml: %v", err)
+	// Copy and modify the meta.xml file
+	if err := r.copyAndModifyMetaFile(r.MetaXMLPath, outputPath); err != nil {
+		return fmt.Errorf("failed to copy and modify meta.xml: %v", err)
 	}
 
-	fmt.Printf("  ✓ Copied meta.xml\n")
+	fmt.Printf("  ✓ Copied and updated meta.xml\n")
+	return nil
+}
+
+// copyAndModifyMetaFile copies the meta.xml file and updates .lua file extensions to .luac using regex
+func (r *Resource) copyAndModifyMetaFile(src, dst string) error {
+	// Read the source meta.xml file
+	content, err := os.ReadFile(src)
+	if err != nil {
+		return fmt.Errorf("failed to read source meta.xml: %v", err)
+	}
+
+	// Convert to string for regex processing
+	metaContent := string(content)
+
+	// Use regex to replace .lua with .luac in src attributes
+	// Match both single and double quoted src attributes ending with .lua
+	luaToLuacRegex := regexp.MustCompile(`(src\s*=\s*"[^"]*?)\.lua(")|(src\s*=\s*'[^']*?)\.lua(')`)
+	
+	// Replace .lua with .luac while preserving the quotes
+	modifiedContent := luaToLuacRegex.ReplaceAllStringFunc(metaContent, func(match string) string {
+		if strings.Contains(match, `"`) {
+			return strings.Replace(match, ".lua\"", ".luac\"", 1)
+		} else {
+			return strings.Replace(match, ".lua'", ".luac'", 1)
+		}
+	})
+
+	// Write the modified content to the destination file
+	err = os.WriteFile(dst, []byte(modifiedContent), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write modified meta.xml: %v", err)
+	}
+
 	return nil
 }
 

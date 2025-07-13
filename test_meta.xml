@@ -1,0 +1,21 @@
+<meta>
+    <info author="Test Author" 
+          version="1.0.0" 
+          name="Test Resource" 
+          description="Test resource for regex testing" 
+          type="gamemode" />
+    
+    <script src="server.lua" type="server" />
+    <script src="client.lua" type="client" />
+    <script src="shared.lua" type="shared" />
+    <script src="utils/helper.lua" type="server" />
+    <script src="modules/core.lua" type="shared" />
+    
+    <file src="logo.png" />
+    <file src="model.dff" />
+    <file src="texture.txd" />
+    
+    <map src="mymap.map" />
+    
+    <config src="settings.xml" type="server" />
+</meta>
