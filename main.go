@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -151,7 +150,14 @@ func compileResources(inputPath string) error {
 			continue
 		}
 
-		err = compileResource(compiler, resource, inputPath)
+		// Create compilation options
+		options := CompilationOptions{
+			ObfuscationLevel:         ObfuscationLevel(obfuscateLevel),
+			StripDebug:               stripDebug,
+			SuppressDecompileWarning: suppressWarn,
+		}
+
+		err = resource.Compile(compiler, inputPath, outputFile, options)
 		if err != nil {
 			fmt.Printf("Error compiling resource %s: %v\n", resource.Name, err)
 			continue
@@ -163,151 +169,6 @@ func compileResources(inputPath string) error {
 	return nil
 }
 
-// compileResource compiles all Lua scripts in a single MTA resource using the compiler.go implementation
-func compileResource(compiler *CLICompiler, resource *Resource, inputPath string) error {
-	fmt.Printf("Compiling resource: %s\n", resource.Name)
-	fmt.Printf("Base directory: %s\n", resource.BaseDir)
-
-	// Collect all Lua script files with their relative paths
-	var luaFileRefs []FileReference
-	for _, fileRef := range resource.Files {
-		if fileRef.ReferenceType == "Script" && strings.ToLower(filepath.Ext(fileRef.FullPath)) == ".lua" {
-			luaFileRefs = append(luaFileRefs, fileRef)
-		}
-	}
-
-	if len(luaFileRefs) == 0 {
-		fmt.Printf("  Warning: No Lua script files found in resource %s\n", resource.Name)
-		return nil
-	}
-
-	fmt.Printf("  Found %d Lua script(s) to compile\n", len(luaFileRefs))
-
-	// Get absolute paths for calculation
-	absInputPath, err := filepath.Abs(inputPath)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute input path: %v", err)
-	}
-
-	// Determine base output directory
-	var baseOutputDir string
-	if outputFile != "" {
-		if filepath.IsAbs(outputFile) {
-			baseOutputDir = outputFile
-		} else {
-			// If outputFile is relative, resolve it from current working directory
-			cwd, err := os.Getwd()
-			if err != nil {
-				return fmt.Errorf("failed to get current working directory: %v", err)
-			}
-			baseOutputDir = filepath.Join(cwd, outputFile)
-		}
-	} else {
-		baseOutputDir = resource.BaseDir
-	}
-
-	// Create base output directory if it doesn't exist
-	if err := os.MkdirAll(baseOutputDir, 0755); err != nil {
-		return fmt.Errorf("failed to create output directory: %v", err)
-	}
-
-	// Compile each file individually while preserving directory structure from inputPath
-	var successCount, errorCount int
-	totalStartTime := time.Now()
-
-	for _, fileRef := range luaFileRefs {
-		fmt.Printf("  Processing: %s\n", fileRef.RelativePath)
-
-		// Calculate the relative path from the input path to preserve directory structure
-		var relativeFromInput string
-		if outputFile != "" {
-			// When output directory is specified, calculate relative path from inputPath
-			relativeFromInput, err = filepath.Rel(absInputPath, resource.BaseDir)
-			if err != nil {
-				return fmt.Errorf("failed to calculate relative path: %v", err)
-			}
-		} else {
-			// When no output directory specified, just use current location
-			relativeFromInput = ""
-		}
-
-		// Build the full output path preserving structure from inputPath
-		baseName := strings.TrimSuffix(filepath.Base(fileRef.RelativePath), ".lua")
-		outputFileName := baseName + ".luac"
-
-		var outputPath string
-		if outputFile != "" {
-			// Build path: baseOutputDir + relativeFromInput + fileRef.RelativePath (but with .luac)
-			relativeDir := filepath.Dir(fileRef.RelativePath)
-			var fullRelativeDir string
-			if relativeFromInput != "" && relativeFromInput != "." {
-				if relativeDir == "." {
-					fullRelativeDir = relativeFromInput
-				} else {
-					fullRelativeDir = filepath.Join(relativeFromInput, relativeDir)
-				}
-			} else {
-				fullRelativeDir = relativeDir
-			}
-
-			if fullRelativeDir == "." || fullRelativeDir == "" {
-				outputPath = filepath.Join(baseOutputDir, outputFileName)
-			} else {
-				outputPath = filepath.Join(baseOutputDir, fullRelativeDir, outputFileName)
-			}
-		} else {
-			// Output to same directory structure as source
-			relativeDir := filepath.Dir(fileRef.RelativePath)
-			if relativeDir == "." {
-				outputPath = filepath.Join(baseOutputDir, outputFileName)
-			} else {
-				outputPath = filepath.Join(baseOutputDir, relativeDir, outputFileName)
-			}
-		}
-
-		// Ensure output subdirectory exists
-		if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
-			fmt.Printf("    ✗ Failed to create output directory: %v\n", err)
-			errorCount++
-			continue
-		}
-
-		// Create compilation options
-		options := CompilationOptions{
-			ObfuscationLevel:         ObfuscationLevel(obfuscateLevel),
-			StripDebug:               stripDebug,
-			SuppressDecompileWarning: suppressWarn,
-		}
-
-		// Compile the file
-		result, err := compiler.CompileFile(fileRef.FullPath, outputPath, options)
-		if err != nil {
-			fmt.Printf("    ✗ %s: %v\n", fileRef.RelativePath, err)
-			errorCount++
-		} else if result.Success {
-			// Show relative output path from baseOutputDir
-			relativeOutputPath, err := filepath.Rel(baseOutputDir, outputPath)
-			if err != nil {
-				relativeOutputPath = filepath.Base(outputPath)
-			}
-			fmt.Printf("    ✓ %s -> %s (%v)\n", fileRef.RelativePath, relativeOutputPath, result.CompileTime)
-			successCount++
-		} else {
-			fmt.Printf("    ✗ %s: %v\n", fileRef.RelativePath, result.Error)
-			errorCount++
-		}
-	}
-
-	totalTime := time.Since(totalStartTime)
-	fmt.Printf("  Compilation completed: %d successful, %d errors\n", successCount, errorCount)
-	fmt.Printf("  Total time: %v\n", totalTime)
-
-	if errorCount > 0 {
-		return fmt.Errorf("compilation completed with %d errors", errorCount)
-	}
-
-	return nil
-}
 
 // compileSingleLuaFile compiles a single Lua file using the compiler.go implementation
 func compileSingleLuaFile(compiler *CLICompiler, luaPath string, basePath string) error {

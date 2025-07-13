@@ -2,8 +2,6 @@ package main
 
 import (
 	"encoding/xml"
-	"fmt"
-	"os"
 	"path/filepath"
 )
 
@@ -55,56 +53,6 @@ type FileReference struct {
 	FullPath      string // Absolute file path
 	ReferenceType string // How the file was referenced (Script, Map, Config, File, HTML)
 	RelativePath  string // Original relative path from meta.xml
-}
-
-// Resource represents an MTA resource with its meta.xml and all file references
-type Resource struct {
-	MetaXMLPath string          // Path to the meta.xml file
-	BaseDir     string          // Base directory of the resource
-	Name        string          // Resource name (derived from directory name)
-	Meta        Meta            // Parsed meta.xml structure
-	Files       []FileReference // All file references from meta.xml
-}
-
-// NewResource creates a new Resource from a meta.xml file path
-func NewResource(metaXMLPath string) (*Resource, error) {
-	// Read the meta.xml file
-	data, err := os.ReadFile(metaXMLPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read meta.xml: %w", err)
-	}
-
-	// Parse the XML
-	var meta Meta
-	err = xml.Unmarshal(data, &meta)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse meta.xml: %w", err)
-	}
-
-	// Get absolute path
-	absPath, err := filepath.Abs(metaXMLPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get absolute path: %w", err)
-	}
-
-	// Create resource
-	baseDir := filepath.Dir(absPath)
-	resourceName := filepath.Base(baseDir)
-
-	resource := &Resource{
-		MetaXMLPath: absPath,
-		BaseDir:     baseDir,
-		Name:        resourceName,
-		Meta:        meta,
-	}
-
-	// Get all file references
-	resource.Files, err = GetAllFiles(meta, absPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get file references: %w", err)
-	}
-
-	return resource, nil
 }
 
 // GetAllFiles extracts all file references from Meta structure and returns their full paths
