@@ -93,9 +93,15 @@ func runCompiler(cmd *cobra.Command, args []string) error {
 
 }
 
-// compileResources handles the compilation of MTA resources
+// compileResources handles the compilation of MTA resources using the compiler.go implementation
 func compileResources(inputPath string) error {
 	fmt.Printf("Starting compilation for: %s\n", inputPath)
+
+	// Initialize the CLI compiler
+	compiler, err := NewCLICompiler("")
+	if err != nil {
+		return fmt.Errorf("failed to initialize compiler: %v", err)
+	}
 
 	// Check if input is a file or directory
 	fileInfo, err := os.Stat(inputPath)
@@ -127,7 +133,7 @@ func compileResources(inputPath string) error {
 			metaPaths = []string{absPath}
 		} else if strings.ToLower(filepath.Ext(inputPath)) == ".lua" {
 			// Single Lua file - compile directly
-			return compileSingleLuaFile(inputPath)
+			return compileSingleLuaFile(compiler, inputPath)
 		} else {
 			return fmt.Errorf("unsupported file type: %s (expected .lua or meta.xml)", inputPath)
 		}
@@ -145,7 +151,7 @@ func compileResources(inputPath string) error {
 			continue
 		}
 
-		err = compileResource(resource)
+		err = compileResource(compiler, resource)
 		if err != nil {
 			fmt.Printf("Error compiling resource %s: %v\n", resource.Name, err)
 			continue
@@ -157,55 +163,74 @@ func compileResources(inputPath string) error {
 	return nil
 }
 
-// compileResource compiles all Lua scripts in a single MTA resource
-func compileResource(resource *Resource) error {
+// compileResource compiles all Lua scripts in a single MTA resource using the compiler.go implementation
+func compileResource(compiler *CLICompiler, resource *Resource) error {
 	fmt.Printf("Compiling resource: %s\n", resource.Name)
 	fmt.Printf("Base directory: %s\n", resource.BaseDir)
 
-	luaFiles := 0
-	
-	// Process all file references and compile Lua scripts
+	// Collect all Lua script files
+	var luaFiles []string
 	for _, fileRef := range resource.Files {
 		if fileRef.ReferenceType == "Script" && strings.ToLower(filepath.Ext(fileRef.FullPath)) == ".lua" {
-			luaFiles++
-			fmt.Printf("  Processing Lua script: %s\n", fileRef.RelativePath)
-			
-			err := compileLuaFile(fileRef.FullPath, fileRef.RelativePath, resource.BaseDir)
-			if err != nil {
-				return fmt.Errorf("failed to compile %s: %v", fileRef.RelativePath, err)
-			}
+			luaFiles = append(luaFiles, fileRef.FullPath)
 		}
 	}
 
-	if luaFiles == 0 {
+	if len(luaFiles) == 0 {
 		fmt.Printf("  Warning: No Lua script files found in resource %s\n", resource.Name)
-	} else {
-		fmt.Printf("  Compiled %d Lua script(s)\n", luaFiles)
+		return nil
+	}
+
+	fmt.Printf("  Found %d Lua script(s) to compile\n", len(luaFiles))
+
+	// Create compilation options from CLI flags
+	options := CompilationOptions{
+		ObfuscationLevel:         ObfuscationLevel(obfuscateLevel),
+		StripDebug:               stripDebug,
+		SuppressDecompileWarning: suppressWarn,
+		Mode:                     ModeIndividual,
+		OutputPath:               resource.BaseDir,
+	}
+
+	// If outputFile is specified, use merged mode for single output
+	if outputFile != "" {
+		options.Mode = ModeMerged
+		if filepath.IsAbs(outputFile) {
+			options.OutputPath = outputFile
+		} else {
+			options.OutputPath = filepath.Join(resource.BaseDir, outputFile)
+		}
+	}
+
+	// Compile using the CLI compiler
+	result, err := compiler.Compile(luaFiles, options)
+	if err != nil {
+		return fmt.Errorf("compilation failed: %v", err)
+	}
+
+	// Display results
+	fmt.Printf("  Compilation completed: %d successful, %d errors\n", result.SuccessCount, result.ErrorCount)
+	fmt.Printf("  Total time: %v\n", result.TotalTime)
+
+	// Display detailed results
+	for _, fileResult := range result.Results {
+		if fileResult.Success {
+			fmt.Printf("    ✓ %s -> %s (%v)\n", filepath.Base(fileResult.InputFile), filepath.Base(fileResult.OutputFile), fileResult.CompileTime)
+		} else {
+			fmt.Printf("    ✗ %s: %v\n", filepath.Base(fileResult.InputFile), fileResult.Error)
+		}
 	}
 
 	return nil
 }
 
-// compileSingleLuaFile compiles a single Lua file
-func compileSingleLuaFile(luaPath string) error {
+// compileSingleLuaFile compiles a single Lua file using the compiler.go implementation
+func compileSingleLuaFile(compiler *CLICompiler, luaPath string) error {
 	fmt.Printf("Compiling single Lua file: %s\n", luaPath)
 	
 	absPath, err := filepath.Abs(luaPath)
 	if err != nil {
 		return fmt.Errorf("cannot get absolute path: %v", err)
-	}
-
-	baseDir := filepath.Dir(absPath)
-	relativePath := filepath.Base(absPath)
-	
-	return compileLuaFile(absPath, relativePath, baseDir)
-}
-
-// compileLuaFile handles the actual compilation of a Lua file
-func compileLuaFile(fullPath, relativePath, baseDir string) error {
-	// Check if file exists
-	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-		return fmt.Errorf("Lua file does not exist: %s", fullPath)
 	}
 
 	// Generate output filename
@@ -215,37 +240,36 @@ func compileLuaFile(fullPath, relativePath, baseDir string) error {
 		if filepath.IsAbs(outputFile) {
 			outputPath = outputFile
 		} else {
-			outputPath = filepath.Join(baseDir, outputFile)
+			outputPath = filepath.Join(filepath.Dir(absPath), outputFile)
 		}
 	} else {
 		// Generate default output filename
-		baseName := strings.TrimSuffix(relativePath, filepath.Ext(relativePath))
-		outputPath = filepath.Join(baseDir, baseName+".luac")
+		baseName := strings.TrimSuffix(filepath.Base(absPath), filepath.Ext(absPath))
+		outputPath = filepath.Join(filepath.Dir(absPath), baseName+".luac")
 	}
 
-	fmt.Printf("    Input:  %s\n", relativePath)
-	fmt.Printf("    Output: %s\n", filepath.Base(outputPath))
-
-	// Display compilation settings
-	if stripDebug {
-		fmt.Printf("    Strip debug: enabled\n")
-	}
-	if obfuscateLevel > 0 {
-		fmt.Printf("    Obfuscation level: %d\n", obfuscateLevel)
-	}
-	if suppressWarn {
-		fmt.Printf("    Suppress warnings: enabled\n")
+	// Create compilation options from CLI flags
+	options := CompilationOptions{
+		ObfuscationLevel:         ObfuscationLevel(obfuscateLevel),
+		StripDebug:               stripDebug,
+		SuppressDecompileWarning: suppressWarn,
 	}
 
-	// TODO: Implement actual Lua compilation here
-	// This would involve:
-	// 1. Reading the Lua source file
-	// 2. Compiling it to bytecode
-	// 3. Applying obfuscation if requested
-	// 4. Stripping debug info if requested
-	// 5. Writing the compiled output
+	// Compile the single file
+	result, err := compiler.CompileFile(absPath, outputPath, options)
+	if err != nil {
+		return fmt.Errorf("compilation failed: %v", err)
+	}
 
-	fmt.Printf("    Status: Compilation simulation complete\n")
+	// Display result
+	if result.Success {
+		fmt.Printf("✓ Compilation successful: %s -> %s (%v)\n", 
+			filepath.Base(result.InputFile), 
+			filepath.Base(result.OutputFile), 
+			result.CompileTime)
+	} else {
+		fmt.Printf("✗ Compilation failed: %v\n", result.Error)
+	}
 
 	return nil
 }
