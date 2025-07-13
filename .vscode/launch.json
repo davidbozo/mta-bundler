@@ -1,0 +1,31 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug MTA Bundler",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}",
+            "args": [
+                "${input:inputPath}",
+                "-o",
+                "${input:outputPath}"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "inputPath",
+            "description": "Input path (file or directory)",
+            "type": "promptString"
+        },
+        {
+            "id": "outputPath",
+            "description": "Output directory",
+            "type": "promptString"
+        }
+    ]
+}
