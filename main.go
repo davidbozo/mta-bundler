@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -25,23 +26,22 @@ for Multi Theft Auto servers. It can process individual files, directories,
 or meta.xml files to compile all referenced scripts.
 
 Examples:
-  mta-bundler script.lua                    # Compile single file
-  mta-bundler -o compiled.lua script.lua    # Compile with custom output
+  mta-bundler script.lua                    # Compile single file to same directory
+  mta-bundler -o output/ script.lua         # Compile to specific output directory
   mta-bundler -e3 script.lua                # Compile with obfuscation level 3
   mta-bundler -s -e2 script.lua             # Strip debug info and obfuscate level 2
   mta-bundler /path/to/resource/            # Process directory (looks for meta.xml)
-  mta-bundler /path/to/meta.xml             # Process meta.xml file directly`,
+  mta-bundler -o compiled/ /path/to/meta.xml # Process meta.xml with custom output directory`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runCompiler,
 }
 
 func init() {
-	rootCmd.Flags().StringVarP(&outputFile, "output", "o", "", "output to file 'name' (default is 'luac.out' or original filename with .luac extension)")
+	rootCmd.Flags().StringVarP(&outputFile, "output", "o", "", "output directory for compiled files (default is same directory as source files)")
 	rootCmd.Flags().BoolVarP(&stripDebug, "strip", "s", false, "strip debug information")
 	rootCmd.Flags().IntVarP(&obfuscateLevel, "obfuscate", "e", 0, "obfuscation level (0-3)")
 	rootCmd.Flags().BoolVarP(&suppressWarn, "suppress", "d", false, "suppress decompile warning")
 	rootCmd.Flags().BoolVarP(&showVersion, "version", "v", false, "show version information")
-	rootCmd.MarkFlagRequired("output")
 
 	// Add support for -e2 and -e3 flags
 	rootCmd.Flags().BoolP("obfuscate2", "2", false, "obfuscation level 2 (equivalent to -e2)")
@@ -144,7 +144,7 @@ func compileResources(inputPath string) error {
 	// Process each meta.xml file
 	for i, metaPath := range metaPaths {
 		fmt.Printf("\n[%d/%d] Processing: %s\n", i+1, len(metaPaths), metaPath)
-		
+
 		resource, err := NewResource(metaPath)
 		if err != nil {
 			fmt.Printf("Error processing %s: %v\n", metaPath, err)
@@ -168,57 +168,93 @@ func compileResource(compiler *CLICompiler, resource *Resource) error {
 	fmt.Printf("Compiling resource: %s\n", resource.Name)
 	fmt.Printf("Base directory: %s\n", resource.BaseDir)
 
-	// Collect all Lua script files
-	var luaFiles []string
+	// Collect all Lua script files with their relative paths
+	var luaFileRefs []FileReference
 	for _, fileRef := range resource.Files {
 		if fileRef.ReferenceType == "Script" && strings.ToLower(filepath.Ext(fileRef.FullPath)) == ".lua" {
-			luaFiles = append(luaFiles, fileRef.FullPath)
+			luaFileRefs = append(luaFileRefs, fileRef)
 		}
 	}
 
-	if len(luaFiles) == 0 {
+	if len(luaFileRefs) == 0 {
 		fmt.Printf("  Warning: No Lua script files found in resource %s\n", resource.Name)
 		return nil
 	}
 
-	fmt.Printf("  Found %d Lua script(s) to compile\n", len(luaFiles))
+	fmt.Printf("  Found %d Lua script(s) to compile\n", len(luaFileRefs))
 
-	// Create compilation options from CLI flags
-	options := CompilationOptions{
-		ObfuscationLevel:         ObfuscationLevel(obfuscateLevel),
-		StripDebug:               stripDebug,
-		SuppressDecompileWarning: suppressWarn,
-		Mode:                     ModeIndividual,
-		OutputPath:               resource.BaseDir,
-	}
-
-	// If outputFile is specified, use merged mode for single output
+	// Determine output directory
+	var outputDir string
 	if outputFile != "" {
-		options.Mode = ModeMerged
 		if filepath.IsAbs(outputFile) {
-			options.OutputPath = outputFile
+			outputDir = outputFile
 		} else {
-			options.OutputPath = filepath.Join(resource.BaseDir, outputFile)
+			outputDir = filepath.Join(resource.BaseDir, outputFile)
+		}
+	} else {
+		outputDir = resource.BaseDir
+	}
+
+	// Create output directory if it doesn't exist
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %v", err)
+	}
+
+	// Compile each file individually while preserving directory structure
+	var successCount, errorCount int
+	totalStartTime := time.Now()
+
+	for _, fileRef := range luaFileRefs {
+		fmt.Printf("  Processing: %s\n", fileRef.RelativePath)
+
+		// Calculate output path preserving directory structure
+		relativeDir := filepath.Dir(fileRef.RelativePath)
+		baseName := strings.TrimSuffix(filepath.Base(fileRef.RelativePath), ".lua")
+		outputFileName := baseName + ".luac"
+
+		var outputPath string
+		if relativeDir == "." {
+			outputPath = filepath.Join(outputDir, outputFileName)
+		} else {
+			outputPath = filepath.Join(outputDir, relativeDir, outputFileName)
+		}
+
+		// Ensure output subdirectory exists
+		if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+			fmt.Printf("    ✗ Failed to create output directory: %v\n", err)
+			errorCount++
+			continue
+		}
+
+		// Create compilation options
+		options := CompilationOptions{
+			ObfuscationLevel:         ObfuscationLevel(obfuscateLevel),
+			StripDebug:               stripDebug,
+			SuppressDecompileWarning: suppressWarn,
+		}
+
+		// Compile the file
+		result, err := compiler.CompileFile(fileRef.FullPath, outputPath, options)
+		if err != nil {
+			fmt.Printf("    ✗ %s: %v\n", fileRef.RelativePath, err)
+			errorCount++
+		} else if result.Success {
+			fmt.Printf("    ✓ %s -> %s (%v)\n", fileRef.RelativePath,
+				strings.TrimPrefix(outputPath, outputDir+string(filepath.Separator)),
+				result.CompileTime)
+			successCount++
+		} else {
+			fmt.Printf("    ✗ %s: %v\n", fileRef.RelativePath, result.Error)
+			errorCount++
 		}
 	}
 
-	// Compile using the CLI compiler
-	result, err := compiler.Compile(luaFiles, options)
-	if err != nil {
-		return fmt.Errorf("compilation failed: %v", err)
-	}
+	totalTime := time.Since(totalStartTime)
+	fmt.Printf("  Compilation completed: %d successful, %d errors\n", successCount, errorCount)
+	fmt.Printf("  Total time: %v\n", totalTime)
 
-	// Display results
-	fmt.Printf("  Compilation completed: %d successful, %d errors\n", result.SuccessCount, result.ErrorCount)
-	fmt.Printf("  Total time: %v\n", result.TotalTime)
-
-	// Display detailed results
-	for _, fileResult := range result.Results {
-		if fileResult.Success {
-			fmt.Printf("    ✓ %s -> %s (%v)\n", filepath.Base(fileResult.InputFile), filepath.Base(fileResult.OutputFile), fileResult.CompileTime)
-		} else {
-			fmt.Printf("    ✗ %s: %v\n", filepath.Base(fileResult.InputFile), fileResult.Error)
-		}
+	if errorCount > 0 {
+		return fmt.Errorf("compilation completed with %d errors", errorCount)
 	}
 
 	return nil
@@ -227,25 +263,35 @@ func compileResource(compiler *CLICompiler, resource *Resource) error {
 // compileSingleLuaFile compiles a single Lua file using the compiler.go implementation
 func compileSingleLuaFile(compiler *CLICompiler, luaPath string) error {
 	fmt.Printf("Compiling single Lua file: %s\n", luaPath)
-	
+
 	absPath, err := filepath.Abs(luaPath)
 	if err != nil {
 		return fmt.Errorf("cannot get absolute path: %v", err)
 	}
 
-	// Generate output filename
+	// Generate output filename preserving original name
+	baseName := strings.TrimSuffix(filepath.Base(absPath), ".lua")
+	outputFileName := baseName + ".luac"
+
 	var outputPath string
 	if outputFile != "" {
-		// Use specified output file
+		// Use specified output directory
+		var outputDir string
 		if filepath.IsAbs(outputFile) {
-			outputPath = outputFile
+			outputDir = outputFile
 		} else {
-			outputPath = filepath.Join(filepath.Dir(absPath), outputFile)
+			outputDir = filepath.Join(filepath.Dir(absPath), outputFile)
 		}
+
+		// Create output directory if it doesn't exist
+		if err := os.MkdirAll(outputDir, 0755); err != nil {
+			return fmt.Errorf("failed to create output directory: %v", err)
+		}
+
+		outputPath = filepath.Join(outputDir, outputFileName)
 	} else {
-		// Generate default output filename
-		baseName := strings.TrimSuffix(filepath.Base(absPath), filepath.Ext(absPath))
-		outputPath = filepath.Join(filepath.Dir(absPath), baseName+".luac")
+		// Output to same directory as source file
+		outputPath = filepath.Join(filepath.Dir(absPath), outputFileName)
 	}
 
 	// Create compilation options from CLI flags
@@ -263,9 +309,9 @@ func compileSingleLuaFile(compiler *CLICompiler, luaPath string) error {
 
 	// Display result
 	if result.Success {
-		fmt.Printf("✓ Compilation successful: %s -> %s (%v)\n", 
-			filepath.Base(result.InputFile), 
-			filepath.Base(result.OutputFile), 
+		fmt.Printf("✓ Compilation successful: %s -> %s (%v)\n",
+			filepath.Base(result.InputFile),
+			filepath.Base(result.OutputFile),
 			result.CompileTime)
 	} else {
 		fmt.Printf("✗ Compilation failed: %v\n", result.Error)
