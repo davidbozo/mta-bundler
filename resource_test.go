@@ -9,7 +9,7 @@ import (
 
 func TestMetaXMLRegexReplacement(t *testing.T) {
 	// Read the test meta.xml file
-	content, err := os.ReadFile("test_meta.xml")
+	content, err := os.ReadFile("resource_test.xml")
 	if err != nil {
 		t.Fatalf("Error reading test file: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestCopyAndModifyMetaFileFunction(t *testing.T) {
 	tempOutput := "test_output_meta.xml"
 	defer os.Remove(tempOutput) // Clean up after test
 	
-	err := testResource.copyAndModifyMetaFile("test_meta.xml", tempOutput)
+	err := testResource.copyAndModifyMetaFile("resource_test.xml", tempOutput)
 	if err != nil {
 		t.Fatalf("copyAndModifyMetaFile failed: %v", err)
 	}
