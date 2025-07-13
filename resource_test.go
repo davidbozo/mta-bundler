@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"regexp"
 	"strings"
 	"testing"
 )
@@ -18,9 +17,6 @@ func TestMetaXMLRegexReplacement(t *testing.T) {
 	metaContent := string(content)
 
 	// Use regex to replace .lua with .luac in src attributes
-	// Match both single and double quoted src attributes ending with .lua
-	luaToLuacRegex := regexp.MustCompile(`(src\s*=\s*"[^"]*?)\.lua(")|(src\s*=\s*'[^']*?)\.lua(')`)
-	
 	// Replace .lua with .luac while preserving the quotes
 	modifiedContent := luaToLuacRegex.ReplaceAllStringFunc(metaContent, func(match string) string {
 		if strings.Contains(match, `"`) {

@@ -11,6 +11,9 @@ import (
 	"time"
 )
 
+// luaToLuacRegex is the compiled regex pattern for replacing .lua with .luac in src attributes
+var luaToLuacRegex = regexp.MustCompile(`(src\s*=\s*"[^"]*?)\.lua(")|(src\s*=\s*'[^']*?)\.lua(')`)
+
 // Resource represents an MTA resource with its meta.xml and all file references
 type Resource struct {
 	MetaXMLPath string          // Path to the meta.xml file
@@ -275,9 +278,6 @@ func (r *Resource) copyAndModifyMetaFile(src, dst string) error {
 	metaContent := string(content)
 
 	// Use regex to replace .lua with .luac in src attributes
-	// Match both single and double quoted src attributes ending with .lua
-	luaToLuacRegex := regexp.MustCompile(`(src\s*=\s*"[^"]*?)\.lua(")|(src\s*=\s*'[^']*?)\.lua(')`)
-	
 	// Replace .lua with .luac while preserving the quotes
 	modifiedContent := luaToLuacRegex.ReplaceAllStringFunc(metaContent, func(match string) string {
 		if strings.Contains(match, `"`) {
