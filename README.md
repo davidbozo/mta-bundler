@@ -1,6 +1,6 @@
 # MTA Bundler
 
-A command-line tool for compiling and bundling Lua scripts for Multi Theft Auto (MTA) servers. This tool processes MTA resources, compiles Lua scripts using `luac_mta`, and creates optimized bundles with configurable obfuscation levels.
+A command-line tool for compiling and bundling Lua scripts for Multi Theft Auto (MTA) servers. This tool processes MTA resources, compiles Lua scripts using [luac_mta](https://wiki.multitheftauto.com/wiki/Lua_compilation_API), and creates optimized bundles with configurable obfuscation levels.
 
 ## Features
 
@@ -155,6 +155,5 @@ This project is open source and available under the [MIT License](LICENSE).
 This project serves as a practice exercise for learning:
 - **Claude Code**: Exploring AI-assisted development workflows and code generation
 - **Go Programming**: Building command-line tools, file processing, and XML parsing in Go
-- **MTA Development**: Understanding MTA resource structure and compilation processes
 
 The goal is to create a practical tool while experimenting with modern development practices and AI-assisted coding techniques.
