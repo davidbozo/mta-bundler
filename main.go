@@ -15,6 +15,7 @@ var (
 	obfuscateLevel int
 	suppressWarn   bool
 	showVersion    bool
+	mergeMode      bool
 )
 
 var rootCmd = &cobra.Command{
@@ -41,6 +42,7 @@ func init() {
 	rootCmd.Flags().IntVarP(&obfuscateLevel, "obfuscate", "e", 0, "obfuscation level (0-3)")
 	rootCmd.Flags().BoolVarP(&suppressWarn, "suppress", "d", false, "suppress decompile warning")
 	rootCmd.Flags().BoolVarP(&showVersion, "version", "v", false, "show version information")
+	rootCmd.Flags().BoolVarP(&mergeMode, "merge", "m", false, "merge all scripts into client.luac and server.luac")
 
 	// Add support for -e2 and -e3 flags
 	rootCmd.Flags().BoolP("obfuscate2", "2", false, "obfuscation level 2 (equivalent to -e2)")
@@ -86,6 +88,7 @@ func runCompiler(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Strip debug: %t\n", stripDebug)
 	fmt.Printf("Obfuscate level: %d\n", obfuscateLevel)
 	fmt.Printf("Suppress warnings: %t\n", suppressWarn)
+	fmt.Printf("Merge mode: %t\n", mergeMode)
 
 	// Implement actual compilation logic
 	return compileResources(inputPath)
@@ -157,7 +160,7 @@ func compileResources(inputPath string) error {
 			SuppressDecompileWarning: suppressWarn,
 		}
 
-		err = resource.Compile(compiler, inputPath, outputFile, options)
+		err = resource.Compile(compiler, inputPath, outputFile, options, mergeMode)
 		if err != nil {
 			fmt.Printf("Error compiling resource %s: %v\n", resource.Name, err)
 			continue
