@@ -85,7 +85,7 @@ func (r *Resource) GetLuaFilesByType() (client, server, shared []FileReference) 
 				ReferenceType: ReferenceTypeScript,
 				RelativePath:  script.Src,
 			}
-			
+
 			switch strings.ToLower(script.Type) {
 			case "client":
 				client = append(client, fileRef)
@@ -217,7 +217,7 @@ func (r *Resource) compileMerged(compiler *CLICompiler, inputPath, outputFile st
 		return nil
 	}
 
-	fmt.Printf("  Found %d client script(s), %d server script(s), %d shared script(s)\n", 
+	fmt.Printf("  Found %d client script(s), %d server script(s), %d shared script(s)\n",
 		len(clientFiles), len(serverFiles), len(sharedFiles))
 
 	// Get absolute paths for calculation
@@ -358,7 +358,7 @@ func (r *Resource) compileMergedFiles(compiler *CLICompiler, filePaths []string,
 
 	// Build command arguments for merged compilation
 	args := []string{"-o", outputPath}
-	
+
 	// Strip debug information
 	if options.StripDebug {
 		args = append(args, "-s")
@@ -473,7 +473,7 @@ func (r *Resource) calculateOutputPath(absInputPath, outputFile, baseOutputDir s
 func (r *Resource) copyMetaFile(baseOutputDir, absInputPath, outputFile string) error {
 	// Calculate the output path for meta.xml
 	var outputPath string
-	
+
 	if outputFile != "" {
 		// When output directory is specified, calculate relative path from inputPath
 		relativeFromInput, err := filepath.Rel(absInputPath, r.BaseDir)
@@ -539,7 +539,7 @@ func (r *Resource) copyAndModifyMetaFile(src, dst string) error {
 func (r *Resource) copyMergedMetaFile(baseOutputDir, absInputPath, outputFile string, hasClientFiles, hasServerFiles bool) error {
 	// Calculate the output path for meta.xml
 	var outputPath string
-	
+
 	if outputFile != "" {
 		// When output directory is specified, calculate relative path from inputPath
 		relativeFromInput, err := filepath.Rel(absInputPath, r.BaseDir)
@@ -579,43 +579,58 @@ func (r *Resource) copyAndModifyMergedMetaFile(src, dst string, hasClientFiles, 
 		return fmt.Errorf("failed to read source meta.xml: %v", err)
 	}
 
-	// Parse the XML
-	var meta Meta
-	err = xml.Unmarshal(content, &meta)
-	if err != nil {
-		return fmt.Errorf("failed to parse meta.xml: %v", err)
-	}
+	// Convert to string for regex processing
+	metaContent := string(content)
 
-	// Clear existing scripts and add merged ones
-	meta.Scripts = nil
-	
+	// Remove all existing <script> tags using regex
+	// This regex matches <script...> tags (both self-closing and with closing tags)
+	scriptRegex := regexp.MustCompile(`(?s)<script[^>]*(?:/>|>.*?</script>)`)
+	modifiedContent := scriptRegex.ReplaceAllString(metaContent, "")
+
+	// Build replacement script tags
+	var scriptTags []string
+
 	if hasClientFiles {
-		meta.Scripts = append(meta.Scripts, Script{
-			Src:  "client.luac",
-			Type: "client",
-			Cache: "true",
-		})
+		scriptTags = append(scriptTags, `    <script src="client.luac" type="client" cache="true" />`)
 	}
-	
+
 	if hasServerFiles {
-		meta.Scripts = append(meta.Scripts, Script{
-			Src:  "server.luac",
-			Type: "server",
-			Cache: "true",
-		})
+		scriptTags = append(scriptTags, `    <script src="server.luac" type="server" cache="true" />`)
 	}
 
-	// Marshal the modified XML
-	modifiedContent, err := xml.MarshalIndent(meta, "", "    ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal modified meta.xml: %v", err)
+	// Find the position to insert the new script tags
+	// Look for the closing </meta> tag and insert before it
+	metaEndRegex := regexp.MustCompile(`(\s*</meta>)`)
+	if metaEndRegex.MatchString(modifiedContent) {
+		// Insert the new script tags before the closing </meta> tag
+		replacement := ""
+		if len(scriptTags) > 0 {
+			replacement = strings.Join(scriptTags, "\n") + "\n$1"
+		} else {
+			replacement = "$1"
+		}
+		modifiedContent = metaEndRegex.ReplaceAllString(modifiedContent, replacement)
+	} else {
+		// Fallback: if no closing </meta> tag found, look for <meta> self-closing tag
+		metaSelfClosingRegex := regexp.MustCompile(`(<meta[^>]*)/>\s*$`)
+		if metaSelfClosingRegex.MatchString(modifiedContent) {
+			// Convert self-closing <meta/> to <meta>...</meta> format
+			replacement := "$1>\n"
+			if len(scriptTags) > 0 {
+				replacement += strings.Join(scriptTags, "\n") + "\n"
+			}
+			replacement += "</meta>"
+			modifiedContent = metaSelfClosingRegex.ReplaceAllString(modifiedContent, replacement)
+		} else {
+			// Last resort: append before the end of the file
+			if len(scriptTags) > 0 {
+				modifiedContent = strings.TrimSpace(modifiedContent) + "\n" + strings.Join(scriptTags, "\n") + "\n"
+			}
+		}
 	}
-
-	// Add XML header
-	finalContent := []byte(`<?xml version="1.0" encoding="UTF-8"?>` + "\n" + string(modifiedContent))
 
 	// Write the modified content to the destination file
-	err = os.WriteFile(dst, finalContent, 0644)
+	err = os.WriteFile(dst, []byte(modifiedContent), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write modified meta.xml: %v", err)
 	}
@@ -667,7 +682,7 @@ func (r *Resource) copyFileReferences(baseOutputDir, absInputPath, outputFile st
 // calculateFileOutputPath calculates the output path for a non-script file reference
 func (r *Resource) calculateFileOutputPath(absInputPath, outputFile, baseOutputDir string, fileRef FileReference) (string, error) {
 	var outputPath string
-	
+
 	if outputFile != "" {
 		// When output directory is specified, calculate relative path from inputPath
 		relativeFromInput, err := filepath.Rel(absInputPath, r.BaseDir)
