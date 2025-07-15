@@ -31,7 +31,8 @@ Examples:
   mta-bundler -e3 script.lua                # Compile with obfuscation level 3
   mta-bundler -s -e2 script.lua             # Strip debug info and obfuscate level 2
   mta-bundler /path/to/resource/            # Process directory (looks for meta.xml)
-  mta-bundler -o compiled/ /path/to/meta.xml # Process meta.xml with custom output directory`,
+  mta-bundler -o compiled/ /path/to/meta.xml # Process meta.xml with custom output directory
+  mta-bundler -m /path/to/resource/         # Merge all scripts into client.luac and server.luac`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: runCompiler,
 }
