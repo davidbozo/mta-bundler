@@ -16,6 +16,11 @@ var (
 	suppressWarn   bool
 	showVersion    bool
 	mergeMode      bool
+	
+	// Build-time variables set by GoReleaser
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
 )
 
 var rootCmd = &cobra.Command{
@@ -59,7 +64,9 @@ func main() {
 
 func runCompiler(cmd *cobra.Command, args []string) error {
 	if showVersion {
-		fmt.Println("mta-bundler version 1.0.0")
+		fmt.Printf("mta-bundler version %s\n", version)
+		fmt.Printf("Commit: %s\n", commit)
+		fmt.Printf("Build Date: %s\n", date)
 		fmt.Println("MTA Lua Compiler for Multi Theft Auto")
 		return nil
 	}
