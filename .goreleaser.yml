@@ -91,12 +91,3 @@ release:
     ```
     
     **Full Changelog**: https://github.com/davidbozo/mta-bundler/compare/{{.PreviousTag}}...{{.Tag}}
-
-brews:
-  - repository:
-      owner: davidbozo
-      name: homebrew-tap
-    folder: Formula
-    homepage: https://github.com/davidbozo/mta-bundler
-    description: CLI tool for compiling and bundling Multi Theft Auto (MTA) Lua resources
-    license: MIT
