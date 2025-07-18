@@ -25,8 +25,8 @@ jobs:
       - name: Download luac_mta
         run: |
           wget https://luac.mtasa.com/files/linux/x64/luac_mta
-          chmod +x luac_mta_linux64
-          sudo mv luac_mta_linux64 /usr/local/bin/luac_mta
+          chmod +x luac_mta
+          sudo mv luac_mta /usr/local/bin/luac_mta
 
       - name: Bundle resources
         run: ./mta-bundler mtasa-resources -m -o bundled-resources
