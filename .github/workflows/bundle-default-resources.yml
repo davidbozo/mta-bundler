@@ -6,31 +6,37 @@ on:
 jobs:
   bundle:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout mta-bundler
-      uses: actions/checkout@v4
-      
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.24'
-        
-    - name: Build mta-bundler
-      run: go build -o mta-bundler .
-      
-    - name: Clone mtasa-resources
-      run: git clone https://github.com/multitheftauto/mtasa-resources.git
-      
-    - name: Bundle resources
-      run: ./mta-bundler mtasa-resources -m -o bundled-resources
-      
-    - name: Create zip archive
-      run: zip -r bundled-resources.zip bundled-resources
-      
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: bundled-default-resources
-        path: bundled-resources.zip
-        retention-days: 30
+      - name: Checkout mta-bundler
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.24"
+
+      - name: Build mta-bundler
+        run: go build -o mta-bundler .
+
+      - name: Clone mtasa-resources
+        run: git clone https://github.com/multitheftauto/mtasa-resources.git
+
+      - name: Download luac_mta
+        run: |
+          wget https://luac.mtasa.com/files/linux/x64/luac_mta
+          chmod +x luac_mta_linux64
+          sudo mv luac_mta_linux64 /usr/local/bin/luac_mta
+
+      - name: Bundle resources
+        run: ./mta-bundler mtasa-resources -m -o bundled-resources
+
+      - name: Create zip archive
+        run: zip -r bundled-resources.zip bundled-resources
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundled-default-resources
+          path: bundled-resources.zip
+          retention-days: 30
