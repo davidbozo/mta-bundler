@@ -31,12 +31,9 @@ jobs:
       - name: Bundle resources
         run: ./mta-bundler mtasa-resources -m -o bundled-resources
 
-      - name: Create zip archive
-        run: zip -r bundled-resources.zip bundled-resources
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: bundled-default-resources
-          path: bundled-resources.zip
+          path: bundled-resources
           retention-days: 30
