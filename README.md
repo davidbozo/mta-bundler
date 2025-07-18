@@ -38,6 +38,7 @@ Options:
   -e, --obfuscate int     Obfuscation level (0-3) (default: 0)
   -2, --obfuscate2        Obfuscation level 2 (equivalent to -e2)
   -3, --obfuscate3        Obfuscation level 3 (equivalent to -e3)
+  -m, --merge             Merge all scripts into client.luac and server.luac
   -d, --suppress          Suppress decompile warning
   -v, --version           Show version information
   -h, --help              Show help information
@@ -54,6 +55,9 @@ mta-bundler -o compiled/ /path/to/resource/
 
 # Compile with obfuscation level 2 and suppress warnings
 mta-bundler -e2 -d script.lua
+
+# Merge all scripts into client.luac and server.luac
+mta-bundler -m /path/to/resource/
 
 # Using shorthand flags
 mta-bundler -3 -s /path/to/resource/
@@ -77,6 +81,17 @@ mta-bundler -3 -s /path/to/resource/
 5. **File Management**: Copies non-script files to maintain resource structure
 6. **Meta.xml Updates**: Updates script references from `.lua` to `.luac` extensions
 7. **Output Generation**: Creates organized output directory with compiled resources
+
+### Merge Mode
+
+When using the merge flag (`-m` or `--merge`), the tool changes its compilation behavior:
+
+1. **Script Grouping**: Groups Lua scripts by type (client, server, shared)
+2. **Shared Script Handling**: Merges shared scripts with both client and server groups
+3. **Consolidated Compilation**: Compiles all client scripts into a single `client.luac` file and all server scripts into a single `server.luac` file
+4. **Meta.xml Updates**: Updates the meta.xml file to reference the merged compiled files instead of individual scripts
+
+This mode is useful for creating simplified resource bundles with just two main script files.
 
 ## Project Structure
 
