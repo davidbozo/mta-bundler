@@ -1,4 +1,4 @@
-name: Bundle Default Resources
+name: Bundle default resources
 
 on:
   workflow_dispatch:
@@ -23,7 +23,7 @@ jobs:
       run: git clone https://github.com/multitheftauto/mtasa-resources.git
       
     - name: Bundle resources
-      run: ./mta-bundler mtasa-resources -merge -o bundled-resources
+      run: ./mta-bundler mtasa-resources -m -o bundled-resources
       
     - name: Create zip archive
       run: zip -r bundled-resources.zip bundled-resources
