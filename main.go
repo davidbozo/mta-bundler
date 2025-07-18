@@ -16,7 +16,7 @@ var (
 	suppressWarn   bool
 	showVersion    bool
 	mergeMode      bool
-	
+
 	// Build-time variables set by GoReleaser
 	version = "dev"
 	commit  = "none"
@@ -179,7 +179,6 @@ func compileResources(inputPath string) error {
 
 	return nil
 }
-
 
 // compileSingleLuaFile compiles a single Lua file using the compiler.go implementation
 func compileSingleLuaFile(compiler *CLICompiler, luaPath string, basePath string) error {
