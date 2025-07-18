@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+  statuses: write
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -33,6 +37,7 @@ jobs:
       run: go mod download
     
     - name: Run tests
+      id: test
       run: go test -v -race -coverprofile=coverage.out ./...
     
     - name: Upload coverage to GitHub
@@ -47,23 +52,11 @@ jobs:
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       with:
         script: |
-          const fs = require('fs');
-          
-          // Read test results from go test output
-          const testPassed = process.env.TEST_EXIT_CODE === '0';
+          const testPassed = process.env.TEST_PASSED === 'true';
           const emoji = testPassed ? '✅' : '❌';
           const status = testPassed ? 'PASSED' : 'FAILED';
           
-          const body = `## ${emoji} Test Results for ${context.sha.substring(0, 7)}
-          
-          **Status**: ${status}
-          **Commit**: ${context.sha}
-          **Branch**: ${context.ref.replace('refs/heads/', '')}
-          **Workflow**: ${context.workflow}
-          
-          Tests ${testPassed ? 'completed successfully' : 'failed'} on main branch push.
-          
-          [View full workflow run](${context.payload.repository.html_url}/actions/runs/${context.runId})`;
+          console.log(`${emoji} Go Tests ${status} for commit ${context.sha.substring(0, 7)}`);
           
           // Create a commit status
           await github.rest.repos.createCommitStatus({
@@ -71,8 +64,8 @@ jobs:
             repo: context.repo.repo,
             sha: context.sha,
             state: testPassed ? 'success' : 'failure',
-            description: `Tests ${status}`,
-            context: 'ci/tests'
+            description: `Go Tests ${status}`,
+            context: 'ci/go-tests'
           });
       env:
-        TEST_EXIT_CODE: ${{ steps.test.outcome == 'success' && '0' || '1' }}
+        TEST_PASSED: ${{ steps.test.outcome == 'success' }}
