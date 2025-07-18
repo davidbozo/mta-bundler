@@ -1,0 +1,36 @@
+name: Bundle Default Resources
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout mta-bundler
+      uses: actions/checkout@v4
+      
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.24'
+        
+    - name: Build mta-bundler
+      run: go build -o mta-bundler .
+      
+    - name: Clone mtasa-resources
+      run: git clone https://github.com/multitheftauto/mtasa-resources.git
+      
+    - name: Bundle resources
+      run: ./mta-bundler -merge -o bundled-resources mtasa-resources
+      
+    - name: Create zip archive
+      run: zip -r bundled-resources.zip bundled-resources
+      
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: bundled-default-resources
+        path: bundled-resources.zip
+        retention-days: 30
