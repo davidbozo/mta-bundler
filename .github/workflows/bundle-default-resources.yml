@@ -23,7 +23,7 @@ jobs:
       run: git clone https://github.com/multitheftauto/mtasa-resources.git
       
     - name: Bundle resources
-      run: ./mta-bundler -merge -o bundled-resources mtasa-resources
+      run: ./mta-bundler mtasa-resources -merge -o bundled-resources
       
     - name: Create zip archive
       run: zip -r bundled-resources.zip bundled-resources
