@@ -40,8 +40,6 @@ Options:
   -o string    Output directory for compiled files (default: same as source)
   -s           Strip debug information
   -e int       Obfuscation level (0-3) (default: 0)
-  -2           Obfuscation level 2 (equivalent to -e2)
-  -3           Obfuscation level 3 (equivalent to -e3)
   -m           Merge all scripts into client.luac and server.luac
   -d           Suppress decompile warning
   -v           Show version information
@@ -52,29 +50,26 @@ Options:
 
 ```bash
 # Compile with maximum obfuscation and strip debug info
-mta-bundler -s -e3 /path/to/resource/
+mta-bundler -s -e 3 /path/to/resource/
 
 # Compile to a specific output directory
 mta-bundler -o compiled/ /path/to/resource/
 
 # Compile with obfuscation level 2 and suppress warnings
-mta-bundler -e2 -d script.lua
+mta-bundler -e 2 -d script.lua
 
 # Merge all scripts into client.luac and server.luac
 mta-bundler -m /path/to/resource/
-
-# Using shorthand flags
-mta-bundler -3 -s /path/to/resource/
 ```
 
 ## Obfuscation Levels
 
 | Level | Flag | Description | MTA Version Required |
 |-------|------|-------------|---------------------|
-| 0     | None | No obfuscation | All versions |
-| 1     | `-e` | Basic obfuscation | All versions |
-| 2     | `-e2` | Enhanced obfuscation | MTA 1.5.2-9.07903+ |
-| 3     | `-e3` | Maximum obfuscation | MTA 1.5.6-9.18728+ |
+| 0     | `-e 0` | No obfuscation | All versions |
+| 1     | `-e 1` | Basic obfuscation | All versions |
+| 2     | `-e 2` | Enhanced obfuscation | MTA 1.5.2-9.07903+ |
+| 3     | `-e 3` | Maximum obfuscation | MTA 1.5.6-9.18728+ |
 
 ## How It Works
 

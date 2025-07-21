@@ -15,8 +15,6 @@ var (
 	suppressWarn   = flag.Bool("d", false, "suppress decompile warning")
 	showVersion    = flag.Bool("v", false, "show version information")
 	mergeMode      = flag.Bool("m", false, "merge all scripts into client.luac and server.luac")
-	obfuscate2     = flag.Bool("2", false, "obfuscation level 2 (equivalent to -e2)")
-	obfuscate3     = flag.Bool("3", false, "obfuscation level 3 (equivalent to -e3)")
 
 	// Build-time variables set by GoReleaser
 	version = "dev"
@@ -65,12 +63,6 @@ func runCompiler() error {
 
 	// Handle obfuscation level flags
 	obfuscationLevel := *obfuscateLevel
-	if *obfuscate2 {
-		obfuscationLevel = 2
-	}
-	if *obfuscate3 {
-		obfuscationLevel = 3
-	}
 
 	// Validate obfuscation level
 	if obfuscationLevel < 0 || obfuscationLevel > 3 {
