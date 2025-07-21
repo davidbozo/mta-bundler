@@ -1,21 +1,22 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/spf13/cobra"
 )
 
 var (
-	outputFile     string
-	stripDebug     bool
-	obfuscateLevel int
-	suppressWarn   bool
-	showVersion    bool
-	mergeMode      bool
+	outputFile     = flag.String("o", "", "output directory for compiled files (default is same directory as source files)")
+	stripDebug     = flag.Bool("s", false, "strip debug information")
+	obfuscateLevel = flag.Int("e", 0, "obfuscation level (0-3)")
+	suppressWarn   = flag.Bool("d", false, "suppress decompile warning")
+	showVersion    = flag.Bool("v", false, "show version information")
+	mergeMode      = flag.Bool("m", false, "merge all scripts into client.luac and server.luac")
+	obfuscate2     = flag.Bool("2", false, "obfuscation level 2 (equivalent to -e2)")
+	obfuscate3     = flag.Bool("3", false, "obfuscation level 3 (equivalent to -e3)")
 
 	// Build-time variables set by GoReleaser
 	version = "dev"
@@ -23,47 +24,38 @@ var (
 	date    = "unknown"
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "mta-bundler [input_path]",
-	Short: "MTA Lua Compiler - Compile and obfuscate Lua scripts for Multi Theft Auto",
-	Long: `MTA Lua Compiler is a tool for compiling and obfuscating Lua scripts 
-for Multi Theft Auto servers. It can process individual files, directories, 
-or meta.xml files to compile all referenced scripts.
-
-Examples:
-  mta-bundler script.lua                    # Compile single file to same directory
-  mta-bundler -o output/ script.lua         # Compile to specific output directory
-  mta-bundler -e3 script.lua                # Compile with obfuscation level 3
-  mta-bundler -s -e2 script.lua             # Strip debug info and obfuscate level 2
-  mta-bundler /path/to/resource/            # Process directory (looks for meta.xml)
-  mta-bundler -o compiled/ /path/to/meta.xml # Process meta.xml with custom output directory
-  mta-bundler -m /path/to/resource/         # Merge all scripts into client.luac and server.luac`,
-	Args: cobra.MaximumNArgs(1),
-	RunE: runCompiler,
-}
-
 func init() {
-	rootCmd.Flags().StringVarP(&outputFile, "output", "o", "", "output directory for compiled files (default is same directory as source files)")
-	rootCmd.Flags().BoolVarP(&stripDebug, "strip", "s", false, "strip debug information")
-	rootCmd.Flags().IntVarP(&obfuscateLevel, "obfuscate", "e", 0, "obfuscation level (0-3)")
-	rootCmd.Flags().BoolVarP(&suppressWarn, "suppress", "d", false, "suppress decompile warning")
-	rootCmd.Flags().BoolVarP(&showVersion, "version", "v", false, "show version information")
-	rootCmd.Flags().BoolVarP(&mergeMode, "merge", "m", false, "merge all scripts into client.luac and server.luac")
-
-	// Add support for -e2 and -e3 flags
-	rootCmd.Flags().BoolP("obfuscate2", "2", false, "obfuscation level 2 (equivalent to -e2)")
-	rootCmd.Flags().BoolP("obfuscate3", "3", false, "obfuscation level 3 (equivalent to -e3)")
+	flag.Usage = func() {
+		binaryName := filepath.Base(os.Args[0])
+		fmt.Fprintf(os.Stderr, "MTA Lua Compiler - Compile and obfuscate Lua scripts for Multi Theft Auto\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: %s [options] [input_path]\n\n", binaryName)
+		fmt.Fprintf(os.Stderr, "MTA Lua Compiler is a tool for compiling and obfuscating Lua scripts\n")
+		fmt.Fprintf(os.Stderr, "for Multi Theft Auto servers. It can process individual files, directories,\n")
+		fmt.Fprintf(os.Stderr, "or meta.xml files to compile all referenced scripts.\n\n")
+		fmt.Fprintf(os.Stderr, "Examples:\n")
+		fmt.Fprintf(os.Stderr, "  %s script.lua                    # Compile single file to same directory\n", binaryName)
+		fmt.Fprintf(os.Stderr, "  %s -o output/ script.lua         # Compile to specific output directory\n", binaryName)
+		fmt.Fprintf(os.Stderr, "  %s -e3 script.lua                # Compile with obfuscation level 3\n", binaryName)
+		fmt.Fprintf(os.Stderr, "  %s -s -e2 script.lua             # Strip debug info and obfuscate level 2\n", binaryName)
+		fmt.Fprintf(os.Stderr, "  %s /path/to/resource/            # Process directory (looks for meta.xml)\n", binaryName)
+		fmt.Fprintf(os.Stderr, "  %s -o compiled/ /path/to/meta.xml # Process meta.xml with custom output directory\n", binaryName)
+		fmt.Fprintf(os.Stderr, "  %s -m /path/to/resource/         # Merge all scripts into client.luac and server.luac\n", binaryName)
+		fmt.Fprintf(os.Stderr, "\nOptions:\n")
+		flag.PrintDefaults()
+	}
 }
 
 func main() {
-	if err := rootCmd.Execute(); err != nil {
+	flag.Parse()
+	
+	if err := runCompiler(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func runCompiler(cmd *cobra.Command, args []string) error {
-	if showVersion {
+func runCompiler() error {
+	if *showVersion {
 		fmt.Printf("mta-bundler version %s\n", version)
 		fmt.Printf("Commit: %s\n", commit)
 		fmt.Printf("Build Date: %s\n", date)
@@ -72,18 +64,20 @@ func runCompiler(cmd *cobra.Command, args []string) error {
 	}
 
 	// Handle obfuscation level flags
-	if obfuscate2, _ := cmd.Flags().GetBool("obfuscate2"); obfuscate2 {
-		obfuscateLevel = 2
+	obfuscationLevel := *obfuscateLevel
+	if *obfuscate2 {
+		obfuscationLevel = 2
 	}
-	if obfuscate3, _ := cmd.Flags().GetBool("obfuscate3"); obfuscate3 {
-		obfuscateLevel = 3
+	if *obfuscate3 {
+		obfuscationLevel = 3
 	}
 
 	// Validate obfuscation level
-	if obfuscateLevel < 0 || obfuscateLevel > 3 {
-		return fmt.Errorf("invalid obfuscation level: %d (must be 0-3)", obfuscateLevel)
+	if obfuscationLevel < 0 || obfuscationLevel > 3 {
+		return fmt.Errorf("invalid obfuscation level: %d (must be 0-3)", obfuscationLevel)
 	}
 
+	args := flag.Args()
 	if len(args) == 0 {
 		return fmt.Errorf("no input files given")
 	}
@@ -92,19 +86,18 @@ func runCompiler(cmd *cobra.Command, args []string) error {
 
 	// Print parsed arguments for demonstration
 	fmt.Printf("Input path: %s\n", inputPath)
-	fmt.Printf("Output file: %s\n", outputFile)
-	fmt.Printf("Strip debug: %t\n", stripDebug)
-	fmt.Printf("Obfuscate level: %d\n", obfuscateLevel)
-	fmt.Printf("Suppress warnings: %t\n", suppressWarn)
-	fmt.Printf("Merge mode: %t\n", mergeMode)
+	fmt.Printf("Output file: %s\n", *outputFile)
+	fmt.Printf("Strip debug: %t\n", *stripDebug)
+	fmt.Printf("Obfuscate level: %d\n", obfuscationLevel)
+	fmt.Printf("Suppress warnings: %t\n", *suppressWarn)
+	fmt.Printf("Merge mode: %t\n", *mergeMode)
 
 	// Implement actual compilation logic
-	return compileResources(inputPath)
-
+	return compileResources(inputPath, obfuscationLevel)
 }
 
 // compileResources handles the compilation of MTA resources using the compiler.go implementation
-func compileResources(inputPath string) error {
+func compileResources(inputPath string, obfuscationLevel int) error {
 	fmt.Printf("Starting compilation for: %s\n", inputPath)
 
 	// Initialize the CLI compiler
@@ -143,7 +136,7 @@ func compileResources(inputPath string) error {
 			metaPaths = []string{absPath}
 		} else if strings.ToLower(filepath.Ext(inputPath)) == ".lua" {
 			// Single Lua file - compile directly
-			return compileSingleLuaFile(compiler, inputPath, inputPath)
+			return compileSingleLuaFile(compiler, inputPath, inputPath, obfuscationLevel)
 		} else {
 			return fmt.Errorf("unsupported file type: %s (expected .lua or meta.xml)", inputPath)
 		}
@@ -163,12 +156,12 @@ func compileResources(inputPath string) error {
 
 		// Create compilation options
 		options := CompilationOptions{
-			ObfuscationLevel:         ObfuscationLevel(obfuscateLevel),
-			StripDebug:               stripDebug,
-			SuppressDecompileWarning: suppressWarn,
+			ObfuscationLevel:         ObfuscationLevel(obfuscationLevel),
+			StripDebug:               *stripDebug,
+			SuppressDecompileWarning: *suppressWarn,
 		}
 
-		err = resource.Compile(compiler, inputPath, outputFile, options, mergeMode)
+		err = resource.Compile(compiler, inputPath, *outputFile, options, *mergeMode)
 		if err != nil {
 			fmt.Printf("Error compiling resource %s: %v\n", resource.Name, err)
 			continue
@@ -181,7 +174,7 @@ func compileResources(inputPath string) error {
 }
 
 // compileSingleLuaFile compiles a single Lua file using the compiler.go implementation
-func compileSingleLuaFile(compiler *CLICompiler, luaPath string, basePath string) error {
+func compileSingleLuaFile(compiler *CLICompiler, luaPath string, basePath string, obfuscationLevel int) error {
 	fmt.Printf("Compiling single Lua file: %s\n", luaPath)
 
 	absPath, err := filepath.Abs(luaPath)
@@ -199,18 +192,18 @@ func compileSingleLuaFile(compiler *CLICompiler, luaPath string, basePath string
 	outputFileName := baseName + ".luac"
 
 	var outputPath string
-	if outputFile != "" {
+	if *outputFile != "" {
 		// Use specified output directory and preserve relative structure from basePath
 		var baseOutputDir string
-		if filepath.IsAbs(outputFile) {
-			baseOutputDir = outputFile
+		if filepath.IsAbs(*outputFile) {
+			baseOutputDir = *outputFile
 		} else {
 			// If outputFile is relative, resolve it from current working directory
 			cwd, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("failed to get current working directory: %v", err)
 			}
-			baseOutputDir = filepath.Join(cwd, outputFile)
+			baseOutputDir = filepath.Join(cwd, *outputFile)
 		}
 
 		// Calculate relative path from basePath to maintain directory structure
@@ -237,9 +230,9 @@ func compileSingleLuaFile(compiler *CLICompiler, luaPath string, basePath string
 
 	// Create compilation options from CLI flags
 	options := CompilationOptions{
-		ObfuscationLevel:         ObfuscationLevel(obfuscateLevel),
-		StripDebug:               stripDebug,
-		SuppressDecompileWarning: suppressWarn,
+		ObfuscationLevel:         ObfuscationLevel(obfuscationLevel),
+		StripDebug:               *stripDebug,
+		SuppressDecompileWarning: *suppressWarn,
 	}
 
 	// Compile the single file

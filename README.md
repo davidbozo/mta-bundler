@@ -37,15 +37,15 @@ mta-bundler /path/to/resource/meta.xml
 mta-bundler [OPTIONS] [input_path]
 
 Options:
-  -o, --output string      Output directory for compiled files (default: same as source)
-  -s, --strip             Strip debug information
-  -e, --obfuscate int     Obfuscation level (0-3) (default: 0)
-  -2, --obfuscate2        Obfuscation level 2 (equivalent to -e2)
-  -3, --obfuscate3        Obfuscation level 3 (equivalent to -e3)
-  -m, --merge             Merge all scripts into client.luac and server.luac
-  -d, --suppress          Suppress decompile warning
-  -v, --version           Show version information
-  -h, --help              Show help information
+  -o string    Output directory for compiled files (default: same as source)
+  -s           Strip debug information
+  -e int       Obfuscation level (0-3) (default: 0)
+  -2           Obfuscation level 2 (equivalent to -e2)
+  -3           Obfuscation level 3 (equivalent to -e3)
+  -m           Merge all scripts into client.luac and server.luac
+  -d           Suppress decompile warning
+  -v           Show version information
+  -h           Show help information
 ```
 
 ### Examples
@@ -88,7 +88,7 @@ mta-bundler -3 -s /path/to/resource/
 
 ### Merge Mode
 
-When using the merge flag (`-m` or `--merge`), the tool changes its compilation behavior:
+When using the merge flag (`-m`), the tool changes its compilation behavior:
 
 1. **Script Grouping**: Groups Lua scripts by type (client, server, shared)
 2. **Shared Script Handling**: Merges shared scripts with both client and server groups
@@ -148,7 +148,7 @@ The tool supports all standard MTA meta.xml file references:
 
 ## Dependencies
 
-- [spf13/cobra](https://github.com/spf13/cobra) - Command-line interface framework
+This tool uses only Go standard library packages with no external dependencies.
 
 ## Contributing
 
