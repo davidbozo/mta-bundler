@@ -8,7 +8,8 @@ A command-line tool for compiling and bundling Lua scripts for Multi Theft Auto 
 
 ## Features
 
-- **Multiple Input Support**: Process single Lua files, directories, or meta.xml files
+- **Input Support**: Process meta.xml files or directories containing MTA resources
+- **Batch Resource Processing**: When given a directory, recursively finds and compiles ALL meta.xml files
 - **Obfuscation Levels**: Support for 4 levels of obfuscation (0-3)
 - **Resource Processing**: Automatically processes MTA resources based on meta.xml structure
 - **Directory Structure Preservation**: Maintains original directory structure in output
@@ -20,15 +21,14 @@ A command-line tool for compiling and bundling Lua scripts for Multi Theft Auto 
 
 ### Basic Usage
 
+The MTA Bundler supports two input types:
+
 ```bash
-# Compile a single Lua file
-mta-bundler script.lua
-
-# Compile a directory (searches for meta.xml files)
-mta-bundler /path/to/resources/
-
-# Compile a specific meta.xml file
+# Compile a single MTA resource (meta.xml file)
 mta-bundler /path/to/resource/meta.xml
+
+# Compile ALL resources in a directory (recursively finds meta.xml files)
+mta-bundler /path/to/resources/
 ```
 
 ### Command Line Options
@@ -49,17 +49,20 @@ Options:
 ### Examples
 
 ```bash
-# Compile with maximum obfuscation and strip debug info
-mta-bundler -s -e 3 /path/to/resource/
+# Compile ALL resources in a directory with maximum obfuscation and strip debug info
+mta-bundler -s -e 3 /path/to/resources/
 
-# Compile to a specific output directory
-mta-bundler -o compiled/ /path/to/resource/
+# Compile all resources to a specific output directory
+mta-bundler -o compiled/ /path/to/resources/
 
-# Compile with obfuscation level 2 and suppress warnings
-mta-bundler -e 2 -d script.lua
+# Compile a single resource with obfuscation level 2 and suppress warnings
+mta-bundler -e 2 -d /path/to/resource/meta.xml
 
-# Merge all scripts into client.luac and server.luac
+# Merge all scripts in a single resource into client.luac and server.luac
 mta-bundler -m /path/to/resource/
+
+# Process entire server resources folder with custom output
+mta-bundler -o /path/to/compiled-server/ /path/to/server/mods/deathmatch/resources/
 ```
 
 ## Obfuscation Levels
@@ -73,13 +76,36 @@ mta-bundler -m /path/to/resource/
 
 ## How It Works
 
-1. **Input Processing**: The tool accepts single files, directories, or meta.xml files
-2. **Resource Discovery**: For directories, it searches for all meta.xml files recursively
-3. **Meta.xml Parsing**: Extracts file references from meta.xml structure
-4. **Lua Compilation**: Compiles each Lua script using `luac_mta` with specified options
-5. **File Management**: Copies non-script files to maintain resource structure
-6. **Meta.xml Updates**: Updates script references from `.lua` to `.luac` extensions
-7. **Output Generation**: Creates organized output directory with compiled resources
+### Input Processing
+The tool supports two input types:
+- **Single meta.xml file**: Compiles all scripts referenced in the resource
+- **Directory**: Recursively finds ALL `meta.xml` files and compiles each resource
+
+### Processing Workflow
+1. **Input Analysis**: Determines if input is file or directory
+2. **Resource Discovery**: For directories, recursively searches for all `meta.xml` files
+3. **Resource Processing**: For each found resource:
+   - **Meta.xml Parsing**: Extracts script file references from meta.xml structure
+   - **Lua Compilation**: Compiles each Lua script using `luac_mta` with specified options
+   - **File Management**: Copies non-script files to maintain resource structure
+   - **Meta.xml Updates**: Updates script references from `.lua` to `.luac` extensions
+4. **Output Generation**: Creates organized output directory with compiled resources
+
+### Directory Processing (Batch Mode)
+
+When a directory is provided as input, the tool:
+
+1. **Recursive Search**: Walks through all subdirectories to find `meta.xml` files
+2. **Resource Identification**: Each `meta.xml` file represents an MTA resource
+3. **Batch Compilation**: Processes all found resources sequentially
+4. **Progress Reporting**: Shows current progress (`[1/5] Processing: resource-name`)
+5. **Error Handling**: Continues processing other resources if one fails
+6. **Structure Preservation**: Maintains directory hierarchy in output
+
+This is particularly useful for:
+- Compiling entire server resource folders
+- Processing multiple resources with a single command
+- Batch deployment preparation
 
 ### Merge Mode
 
