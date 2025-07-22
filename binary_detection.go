@@ -4,52 +4,51 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"runtime"
 )
 
 // BinaryDetector handles detection and validation of the luac_mta binary
-type BinaryDetector struct{}
-
-// NewBinaryDetector creates a new binary detector instance
-func NewBinaryDetector() *BinaryDetector {
-	return &BinaryDetector{}
+type BinaryDetector struct {
+	providers []BinaryProvider
 }
 
-// DetectPath attempts to find the luac_mta binary
+// NewBinaryDetector creates a new binary detector instance with default providers
+func NewBinaryDetector() *BinaryDetector {
+	return &BinaryDetector{
+		providers: []BinaryProvider{
+			NewLocalBinaryProvider(),
+			NewWebBinaryProvider(),
+		},
+	}
+}
+
+// NewBinaryDetectorWithProviders creates a binary detector with custom providers
+func NewBinaryDetectorWithProviders(providers []BinaryProvider) *BinaryDetector {
+	return &BinaryDetector{
+		providers: providers,
+	}
+}
+
+// DetectPath attempts to find the luac_mta binary using configured providers
 func (bd *BinaryDetector) DetectPath() (string, error) {
-	var candidates []string
+	if len(bd.providers) == 0 {
+		return "", fmt.Errorf("no binary providers configured")
+	}
 
-	// Platform-specific binary names
-	if runtime.GOOS == "windows" {
-		candidates = []string{
-			"luac_mta.exe",
-			"./luac_mta.exe",
-			"./bin/luac_mta.exe",
-			"C:\\bin\\luac_mta.exe",
-		}
-	} else {
-		candidates = []string{
-			"luac_mta",
-			"./luac_mta",
-			"./bin/luac_mta",
-			"/usr/local/bin/luac_mta",
-			"/usr/bin/luac_mta",
+	var lastErr error
+
+	// Try each provider in order
+	for _, provider := range bd.providers {
+		if path, err := provider.GetBinary(); err == nil {
+			fmt.Printf("Binary found using %s provider: %s\n", provider.Name(), path)
+			return path, nil
+		} else {
+			fmt.Printf("Provider %s failed: %v\n", provider.Name(), err)
+			lastErr = err
 		}
 	}
 
-	// Check PATH first
-	if path, err := exec.LookPath("luac_mta"); err == nil {
-		return path, nil
-	}
+	return "", fmt.Errorf("all providers failed, last error: %w", lastErr)
 
-	// Check candidate locations
-	for _, candidate := range candidates {
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate, nil
-		}
-	}
-
-	return "", fmt.Errorf("luac_mta binary not found in PATH or common locations")
 }
 
 // ValidatePath checks if the binary exists and is executable
