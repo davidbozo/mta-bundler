@@ -120,8 +120,15 @@ func validateInputPath(inputPath string) error {
 func compileResources(inputPath string, obfuscationLevel int) error {
 	fmt.Printf("Starting compilation for: %s\n", inputPath)
 
-	// Initialize the CLI compiler
-	compiler, err := NewCLICompiler("")
+	// Detect luac_mta binary path
+	detector := NewBinaryDetector()
+	binaryPath, err := detector.DetectAndValidate()
+	if err != nil {
+		return fmt.Errorf("failed to detect luac_mta binary: %v", err)
+	}
+
+	// Initialize the CLI compiler with detected binary path
+	compiler, err := NewCLICompiler(binaryPath)
 	if err != nil {
 		return fmt.Errorf("failed to initialize compiler: %v", err)
 	}

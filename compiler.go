@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 )
@@ -86,81 +85,17 @@ type CLICompiler struct {
 
 // NewCLICompiler creates a new CLI-based Lua compiler
 func NewCLICompiler(binaryPath string) (*CLICompiler, error) {
-	compiler := &CLICompiler{binaryPath: binaryPath}
-
-	// If no binary path provided, try to auto-detect
 	if binaryPath == "" {
-		detectedPath, err := compiler.detectBinaryPath()
-		if err != nil {
-			return nil, fmt.Errorf("failed to detect luac_mta binary: %w", err)
-		}
-		compiler.binaryPath = detectedPath
+		return nil, fmt.Errorf("binaryPath cannot be empty")
 	}
 
-	// Validate that the binary exists and is executable
-	if err := compiler.validateBinary(); err != nil {
-		return nil, fmt.Errorf("binary validation failed: %w", err)
+	compiler := &CLICompiler{
+		binaryPath: binaryPath,
 	}
 
 	return compiler, nil
 }
 
-// detectBinaryPath attempts to find the luac_mta binary
-func (c *CLICompiler) detectBinaryPath() (string, error) {
-	var candidates []string
-
-	// Platform-specific binary names
-	if runtime.GOOS == "windows" {
-		candidates = []string{
-			"luac_mta.exe",
-			"./luac_mta.exe",
-			"./bin/luac_mta.exe",
-			"C:\\bin\\luac_mta.exe",
-		}
-	} else {
-		candidates = []string{
-			"luac_mta",
-			"./luac_mta",
-			"./bin/luac_mta",
-			"/usr/local/bin/luac_mta",
-			"/usr/bin/luac_mta",
-		}
-	}
-
-	// Check PATH first
-	if path, err := exec.LookPath("luac_mta"); err == nil {
-		return path, nil
-	}
-
-	// Check candidate locations
-	for _, candidate := range candidates {
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate, nil
-		}
-	}
-
-	return "", fmt.Errorf("luac_mta binary not found in PATH or common locations")
-}
-
-// validateBinary checks if the binary exists and is executable
-func (c *CLICompiler) validateBinary() error {
-	if _, err := os.Stat(c.binaryPath); os.IsNotExist(err) {
-		return fmt.Errorf("binary not found: %s", c.binaryPath)
-	}
-
-	// Test if binary is executable by running with no arguments
-	cmd := exec.Command(c.binaryPath)
-	if err := cmd.Run(); err != nil {
-		// luac_mta returns non-zero when no files are provided, which is expected
-		if _, ok := err.(*exec.ExitError); ok {
-			// Check if it's the expected "no input files" error
-			return nil
-		}
-		return fmt.Errorf("binary is not executable: %w", err)
-	}
-
-	return nil
-}
 
 // GetBinaryPath returns the path to the luac_mta binary
 func (c *CLICompiler) GetBinaryPath() (string, error) {
