@@ -1,4 +1,4 @@
-package main
+package resource
 
 import (
 	"os"
@@ -66,13 +66,13 @@ func TestMetaXMLRegexReplacement(t *testing.T) {
 
 func TestCopyAndModifyMetaFileFunction(t *testing.T) {
 	// Create a temporary test resource
-	testResource := &Resource{}
+	testResource := Resource{}
 
 	// Test the copyAndModifyMetaFile function directly
 	tempOutput := "test_output_meta.xml"
 	defer os.Remove(tempOutput) // Clean up after test
 
-	err := testResource.copyAndModifyMetaFile("resource_test.xml", tempOutput)
+	err := testResource.CopyAndModifyMetaFile("resource_test.xml", tempOutput)
 	if err != nil {
 		t.Fatalf("copyAndModifyMetaFile failed: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestCopyAndModifyMetaFileFunction(t *testing.T) {
 // Test for copyAndModifyMergedMetaFile method
 func TestCopyAndModifyMergedMetaFile(t *testing.T) {
 	// Create a temporary test resource
-	testResource := &Resource{}
+	testResource := Resource{}
 
 	tests := []struct {
 		name           string
@@ -205,7 +205,7 @@ func TestCopyAndModifyMergedMetaFile(t *testing.T) {
 			defer os.Remove(tempOutputFile)
 
 			// Test the copyAndModifyMergedMetaFile function
-			err = testResource.copyAndModifyMergedMetaFile(tempInputFile, tempOutputFile, tt.hasClientFiles, tt.hasServerFiles)
+			err = testResource.CopyAndModifyMergedMetaFile(tempInputFile, tempOutputFile, tt.hasClientFiles, tt.hasServerFiles)
 			if err != nil {
 				t.Fatalf("copyAndModifyMergedMetaFile failed: %v", err)
 			}

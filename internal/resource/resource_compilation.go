@@ -1,4 +1,4 @@
-package main
+package resource
 
 import (
 	"fmt"
@@ -7,22 +7,24 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/davidbozo/mta-bundler/internal/compiler"
 )
 
 // Compile compiles all Lua scripts in the resource
-func (r *Resource) Compile(compiler *CLICompiler, inputPath, outputFile string, options CompilationOptions, mergeMode bool) error {
+func (r *Resource) Compile(comp *compiler.CLICompiler, inputPath, outputFile string, options compiler.CompilationOptions, mergeMode bool) error {
 	fmt.Printf("Compiling resource: %s\n", r.Name)
 	fmt.Printf("Base directory: %s\n", r.BaseDir)
 
 	if mergeMode {
-		return r.compileMerged(compiler, inputPath, outputFile, options)
+		return r.compileMerged(comp, inputPath, outputFile, options)
 	} else {
-		return r.compileIndividual(compiler, inputPath, outputFile, options)
+		return r.compileIndividual(comp, inputPath, outputFile, options)
 	}
 }
 
 // compileIndividual compiles each file individually (original behavior)
-func (r *Resource) compileIndividual(compiler *CLICompiler, inputPath, outputFile string, options CompilationOptions) error {
+func (r *Resource) compileIndividual(comp *compiler.CLICompiler, inputPath, outputFile string, options compiler.CompilationOptions) error {
 	// Get all Lua script files
 	luaFiles := r.GetLuaFiles()
 	if len(luaFiles) == 0 {
@@ -85,7 +87,7 @@ func (r *Resource) compileIndividual(compiler *CLICompiler, inputPath, outputFil
 		}
 
 		// Compile the file
-		result, err := compiler.CompileFile(fileRef.FullPath, outputPath, options)
+		result, err := comp.CompileFile(fileRef.FullPath, outputPath, options)
 		if err != nil {
 			fmt.Printf("    ✗ %s: %v\n", fileRef.RelativePath, err)
 			errorCount++
@@ -102,10 +104,10 @@ func (r *Resource) compileIndividual(compiler *CLICompiler, inputPath, outputFil
 				reduction := (1.0 - result.CompressionRatio) * 100
 				if reduction > 0 {
 					sizeInfo = fmt.Sprintf(" [%s → %s, %.0f%% reduction]",
-						formatSize(result.InputSize), formatSize(result.OutputSize), reduction)
+						compiler.FormatSize(result.InputSize), compiler.FormatSize(result.OutputSize), reduction)
 				} else {
 					sizeInfo = fmt.Sprintf(" [%s → %s]",
-						formatSize(result.InputSize), formatSize(result.OutputSize))
+						compiler.FormatSize(result.InputSize), compiler.FormatSize(result.OutputSize))
 				}
 			}
 
@@ -141,7 +143,7 @@ func (r *Resource) compileIndividual(compiler *CLICompiler, inputPath, outputFil
 	if totalInputSize > 0 && totalOutputSize > 0 && successCount > 0 {
 		reduction := (1.0 - float64(totalOutputSize)/float64(totalInputSize)) * 100
 		fmt.Printf("  Resource size summary: %s \u2192 %s (%.0f%% reduction)\n",
-			formatSize(totalInputSize), formatSize(totalOutputSize), reduction)
+			compiler.FormatSize(totalInputSize), compiler.FormatSize(totalOutputSize), reduction)
 	}
 	fmt.Printf("  Total time: %v\n", totalTime)
 
@@ -153,7 +155,7 @@ func (r *Resource) compileIndividual(compiler *CLICompiler, inputPath, outputFil
 }
 
 // compileMerged compiles scripts into client.luac and server.luac files
-func (r *Resource) compileMerged(compiler *CLICompiler, inputPath, outputFile string, options CompilationOptions) error {
+func (r *Resource) compileMerged(comp *compiler.CLICompiler, inputPath, outputFile string, options compiler.CompilationOptions) error {
 	// Get scripts grouped by type
 	clientFiles, serverFiles, sharedFiles := r.GetLuaFilesByType()
 
@@ -224,7 +226,7 @@ func (r *Resource) compileMerged(compiler *CLICompiler, inputPath, outputFile st
 			}
 
 			fmt.Printf("  Compiling client files to client.luac...\n")
-			result, err := r.compileMergedFiles(compiler, clientPaths, clientOutputPath, options)
+			result, err := r.compileMergedFiles(comp, clientPaths, clientOutputPath, options)
 			if err != nil {
 				fmt.Printf("    ✗ Client compilation failed: %v\n", err)
 				errorCount++
@@ -235,10 +237,10 @@ func (r *Resource) compileMerged(compiler *CLICompiler, inputPath, outputFile st
 					reduction := (1.0 - result.CompressionRatio) * 100
 					if reduction > 0 {
 						sizeInfo = fmt.Sprintf(" [%s → %s, %.0f%% reduction]",
-							formatSize(result.InputSize), formatSize(result.OutputSize), reduction)
+							compiler.FormatSize(result.InputSize), compiler.FormatSize(result.OutputSize), reduction)
 					} else {
 						sizeInfo = fmt.Sprintf(" [%s → %s, %.0f%% reduction]",
-							formatSize(result.InputSize), formatSize(result.OutputSize), reduction)
+							compiler.FormatSize(result.InputSize), compiler.FormatSize(result.OutputSize), reduction)
 					}
 				}
 				fmt.Printf("    ✓ Client compilation successful: client.luac (%v)%s\n", result.CompileTime, sizeInfo)
@@ -272,7 +274,7 @@ func (r *Resource) compileMerged(compiler *CLICompiler, inputPath, outputFile st
 			}
 
 			fmt.Printf("  Compiling server files to server.luac...\n")
-			result, err := r.compileMergedFiles(compiler, serverPaths, serverOutputPath, options)
+			result, err := r.compileMergedFiles(comp, serverPaths, serverOutputPath, options)
 			if err != nil {
 				fmt.Printf("    ✗ Server compilation failed: %v\n", err)
 				errorCount++
@@ -283,10 +285,10 @@ func (r *Resource) compileMerged(compiler *CLICompiler, inputPath, outputFile st
 					reduction := (1.0 - result.CompressionRatio) * 100
 					if reduction > 0 {
 						sizeInfo = fmt.Sprintf(" [%s → %s, %.0f%% reduction]",
-							formatSize(result.InputSize), formatSize(result.OutputSize), reduction)
+							compiler.FormatSize(result.InputSize), compiler.FormatSize(result.OutputSize), reduction)
 					} else {
 						sizeInfo = fmt.Sprintf(" [%s → %s]",
-							formatSize(result.InputSize), formatSize(result.OutputSize))
+							compiler.FormatSize(result.InputSize), compiler.FormatSize(result.OutputSize))
 					}
 				}
 				fmt.Printf("    ✓ Server compilation successful: server.luac (%v)%s\n", result.CompileTime, sizeInfo)
@@ -310,23 +312,23 @@ func (r *Resource) compileMerged(compiler *CLICompiler, inputPath, outputFile st
 }
 
 // compileMergedFiles compiles multiple Lua files into a single output file
-func (r *Resource) compileMergedFiles(compiler *CLICompiler, filePaths []string, outputPath string, options CompilationOptions) (*CompilationResult, error) {
+func (r *Resource) compileMergedFiles(comp *compiler.CLICompiler, filePaths []string, outputPath string, options compiler.CompilationOptions) (*compiler.CompilationResult, error) {
 	startTime := time.Now()
 
-	result := &CompilationResult{
+	result := &compiler.CompilationResult{
 		InputFile:  strings.Join(filePaths, ", "),
 		OutputFile: outputPath,
 	}
 
 	// Validate input files
-	if err := compiler.ValidateFiles(filePaths); err != nil {
+	if err := comp.ValidateFiles(filePaths); err != nil {
 		result.Error = err
 		result.CompileTime = time.Since(startTime)
 		return result, err
 	}
 
 	// Calculate total input size
-	if inputSize, err := calculateTotalSize(filePaths); err == nil {
+	if inputSize, err := compiler.CalculateTotalSize(filePaths); err == nil {
 		result.InputSize = inputSize
 	}
 
@@ -347,13 +349,13 @@ func (r *Resource) compileMergedFiles(compiler *CLICompiler, filePaths []string,
 
 	// Obfuscation level
 	switch options.ObfuscationLevel {
-	case ObfuscationBasic:
+	case compiler.ObfuscationBasic:
 		args = append(args, "-e")
-	case ObfuscationEnhanced:
+	case compiler.ObfuscationEnhanced:
 		args = append(args, "-e2")
-	case ObfuscationMaximum:
+	case compiler.ObfuscationMaximum:
 		args = append(args, "-e3")
-	case ObfuscationNone:
+	case compiler.ObfuscationNone:
 		// No obfuscation flag needed
 	}
 
@@ -366,7 +368,7 @@ func (r *Resource) compileMergedFiles(compiler *CLICompiler, filePaths []string,
 	args = append(args, filePaths...)
 
 	// Execute compilation
-	binaryPath, err := compiler.GetBinaryPath()
+	binaryPath, err := comp.GetBinaryPath()
 	if err != nil {
 		result.Error = fmt.Errorf("failed to get binary path: %w", err)
 		result.CompileTime = time.Since(startTime)
@@ -386,9 +388,9 @@ func (r *Resource) compileMergedFiles(compiler *CLICompiler, filePaths []string,
 	result.Success = true
 
 	// Calculate output file size and update metrics
-	if outputSize, err := calculateFileSize(outputPath); err == nil {
+	if outputSize, err := compiler.CalculateFileSize(outputPath); err == nil {
 		result.OutputSize = outputSize
-		updateSizeMetrics(result)
+		compiler.UpdateSizeMetrics(result)
 	}
 
 	return result, nil

@@ -1,4 +1,4 @@
-package main
+package compiler
 
 import (
 	"fmt"
@@ -166,7 +166,7 @@ func (c *CLICompiler) CompileFile(filePath string, outputPath string, options Co
 	}
 
 	// Calculate input file size
-	if inputSize, err := calculateFileSize(filePath); err == nil {
+	if inputSize, err := CalculateFileSize(filePath); err == nil {
 		result.InputSize = inputSize
 	}
 
@@ -202,9 +202,9 @@ func (c *CLICompiler) CompileFile(filePath string, outputPath string, options Co
 	result.Success = true
 	
 	// Calculate output file size and update metrics
-	if outputSize, err := calculateFileSize(outputPath); err == nil {
+	if outputSize, err := CalculateFileSize(outputPath); err == nil {
 		result.OutputSize = outputSize
-		updateSizeMetrics(result)
+		UpdateSizeMetrics(result)
 	}
 	
 	return result, nil
@@ -224,7 +224,7 @@ func (c *CLICompiler) compileMerged(filePaths []string, options CompilationOptio
 	}
 
 	// Calculate total input size
-	if inputSize, err := calculateTotalSize(filePaths); err == nil {
+	if inputSize, err := CalculateTotalSize(filePaths); err == nil {
 		result.InputSize = inputSize
 	}
 
@@ -247,9 +247,9 @@ func (c *CLICompiler) compileMerged(filePaths []string, options CompilationOptio
 		batchResult.SuccessCount = 1
 		
 		// Calculate output file size and update metrics
-		if outputSize, err := calculateFileSize(outputPath); err == nil {
+		if outputSize, err := CalculateFileSize(outputPath); err == nil {
 			result.OutputSize = outputSize
-			updateSizeMetrics(&result)
+			UpdateSizeMetrics(&result)
 		}
 	}
 
@@ -297,7 +297,7 @@ func (c *CLICompiler) compileIndividual(filePaths []string, options CompilationO
 		}
 
 		// Calculate input file size
-		if inputSize, err := calculateFileSize(inputPath); err == nil {
+		if inputSize, err := CalculateFileSize(inputPath); err == nil {
 			result.InputSize = inputSize
 		}
 
@@ -330,9 +330,9 @@ func (c *CLICompiler) compileIndividual(filePaths []string, options CompilationO
 			batchResult.SuccessCount++
 			
 			// Calculate output file size and update metrics
-			if outputSize, err := calculateFileSize(outputPath); err == nil {
+			if outputSize, err := CalculateFileSize(outputPath); err == nil {
 				result.OutputSize = outputSize
-				updateSizeMetrics(&result)
+				UpdateSizeMetrics(&result)
 			}
 		}
 
@@ -383,8 +383,8 @@ func (c *CLICompiler) buildArgs(options CompilationOptions, outputPath string) [
 	return args
 }
 
-// calculateFileSize returns the size of a file in bytes
-func calculateFileSize(filePath string) (int64, error) {
+// CalculateFileSize returns the size of a file in bytes
+func CalculateFileSize(filePath string) (int64, error) {
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get file info for %s: %w", filePath, err)
@@ -392,11 +392,11 @@ func calculateFileSize(filePath string) (int64, error) {
 	return fileInfo.Size(), nil
 }
 
-// calculateTotalSize returns the total size of multiple files in bytes
-func calculateTotalSize(filePaths []string) (int64, error) {
+// CalculateTotalSize returns the total size of multiple files in bytes
+func CalculateTotalSize(filePaths []string) (int64, error) {
 	var totalSize int64
 	for _, filePath := range filePaths {
-		size, err := calculateFileSize(filePath)
+		size, err := CalculateFileSize(filePath)
 		if err != nil {
 			return 0, err
 		}
@@ -405,8 +405,8 @@ func calculateTotalSize(filePaths []string) (int64, error) {
 	return totalSize, nil
 }
 
-// updateSizeMetrics calculates and updates size-related metrics in the compilation result
-func updateSizeMetrics(result *CompilationResult) {
+// UpdateSizeMetrics calculates and updates size-related metrics in the compilation result
+func UpdateSizeMetrics(result *CompilationResult) {
 	if result.InputSize > 0 && result.OutputSize > 0 {
 		result.CompressionRatio = float64(result.OutputSize) / float64(result.InputSize)
 	}
@@ -429,8 +429,8 @@ func updateBatchSizeMetrics(batchResult *BatchCompilationResult) {
 	}
 }
 
-// formatSize formats a size in bytes to a human-readable string
-func formatSize(bytes int64) string {
+// FormatSize formats a size in bytes to a human-readable string
+func FormatSize(bytes int64) string {
 	const unit = 1024
 	if bytes < unit {
 		return fmt.Sprintf("%d B", bytes)
