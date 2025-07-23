@@ -55,9 +55,13 @@ func (r *Resource) compileIndividual(compiler *CLICompiler, inputPath, outputFil
 	}
 
 	// Copy all non-script file references to output directory
-	if err := r.copyFileReferences(baseOutputDir, absInputPath, outputFile); err != nil {
+	copyResult, err := r.copyFileReferences(baseOutputDir, absInputPath, outputFile)
+	if err != nil {
 		return fmt.Errorf("failed to copy file references: %v", err)
 	}
+
+	// Log file copy results
+	printFileCopyResults(copyResult)
 
 	// Compile each file individually while preserving directory structure
 	var successCount, errorCount int
@@ -188,9 +192,12 @@ func (r *Resource) compileMerged(compiler *CLICompiler, inputPath, outputFile st
 	}
 
 	// Copy all non-script file references to output directory
-	if err := r.copyFileReferences(baseOutputDir, absInputPath, outputFile); err != nil {
+	copyResult, err := r.copyFileReferences(baseOutputDir, absInputPath, outputFile)
+	if err != nil {
 		return fmt.Errorf("failed to copy file references: %v", err)
 	}
+
+	printFileCopyResults(copyResult)
 
 	var successCount, errorCount int
 	totalStartTime := time.Now()

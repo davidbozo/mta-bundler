@@ -148,3 +148,27 @@ mods/deathmatch/resources/
 ```
 
 This guide provides the essential knowledge needed to understand and work with MTA resources, from basic concepts to advanced configuration options.
+
+## Go Coding Guidelines
+
+### Return Types
+
+- **Small structs should be returned by value**, not by pointer
+- Use pointers only when:
+  - The struct is large (>100 bytes)
+  - You need to modify the struct after returning it
+  - The struct contains mutexes or other non-copyable fields
+  - Following an established pattern in legacy code that requires consistency
+
+Examples:
+```go
+// Preferred: Return small result structs by value
+func processFiles() (FileCopyBatchResult, error) {
+    return FileCopyBatchResult{...}, nil
+}
+
+// Avoid: Unnecessary pointer for small structs
+func processFiles() (*FileCopyBatchResult, error) {
+    return &FileCopyBatchResult{...}, nil
+}
+```
