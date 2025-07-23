@@ -91,7 +91,21 @@ func (r *Resource) compileIndividual(compiler *CLICompiler, inputPath, outputFil
 			if err != nil {
 				relativeOutputPath = filepath.Base(outputPath)
 			}
-			fmt.Printf("    ✓ %s -> %s (%v)\n", fileRef.RelativePath, relativeOutputPath, result.CompileTime)
+
+			// Format size information
+			sizeInfo := ""
+			if result.InputSize > 0 && result.OutputSize > 0 {
+				reduction := (1.0 - result.CompressionRatio) * 100
+				if reduction > 0 {
+					sizeInfo = fmt.Sprintf(" [%s → %s, %.0f%% reduction]",
+						formatSize(result.InputSize), formatSize(result.OutputSize), reduction)
+				} else {
+					sizeInfo = fmt.Sprintf(" [%s → %s]",
+						formatSize(result.InputSize), formatSize(result.OutputSize))
+				}
+			}
+
+			fmt.Printf("    ✓ %s -> %s (%v)%s\n", fileRef.RelativePath, relativeOutputPath, result.CompileTime, sizeInfo)
 			successCount++
 		} else {
 			fmt.Printf("    ✗ %s: %v\n", fileRef.RelativePath, result.Error)
@@ -100,7 +114,31 @@ func (r *Resource) compileIndividual(compiler *CLICompiler, inputPath, outputFil
 	}
 
 	totalTime := time.Since(totalStartTime)
+
+	// Calculate resource-level size summary
+	var totalInputSize, totalOutputSize int64
+	for _, fileRef := range luaFiles {
+		if info, err := os.Stat(fileRef.FullPath); err == nil {
+			totalInputSize += info.Size()
+		}
+	}
+
+	// Sum up output sizes from successful compilations
+	for _, fileRef := range luaFiles {
+		outputPath, err := r.calculateOutputPath(absInputPath, outputFile, baseOutputDir, fileRef)
+		if err == nil {
+			if info, err := os.Stat(outputPath); err == nil {
+				totalOutputSize += info.Size()
+			}
+		}
+	}
+
 	fmt.Printf("  Compilation completed: %d successful, %d errors\n", successCount, errorCount)
+	if totalInputSize > 0 && totalOutputSize > 0 && successCount > 0 {
+		reduction := (1.0 - float64(totalOutputSize)/float64(totalInputSize)) * 100
+		fmt.Printf("  Resource size summary: %s \u2192 %s (%.0f%% reduction)\n",
+			formatSize(totalInputSize), formatSize(totalOutputSize), reduction)
+	}
 	fmt.Printf("  Total time: %v\n", totalTime)
 
 	if errorCount > 0 {
@@ -184,7 +222,19 @@ func (r *Resource) compileMerged(compiler *CLICompiler, inputPath, outputFile st
 				fmt.Printf("    ✗ Client compilation failed: %v\n", err)
 				errorCount++
 			} else if result.Success {
-				fmt.Printf("    ✓ Client compilation successful: client.luac (%v)\n", result.CompileTime)
+				// Format size information for merged client files
+				sizeInfo := ""
+				if result.InputSize > 0 && result.OutputSize > 0 {
+					reduction := (1.0 - result.CompressionRatio) * 100
+					if reduction > 0 {
+						sizeInfo = fmt.Sprintf(" [%s → %s, %.0f%% reduction]",
+							formatSize(result.InputSize), formatSize(result.OutputSize), reduction)
+					} else {
+						sizeInfo = fmt.Sprintf(" [%s → %s, %.0f%% reduction]",
+							formatSize(result.InputSize), formatSize(result.OutputSize), reduction)
+					}
+				}
+				fmt.Printf("    ✓ Client compilation successful: client.luac (%v)%s\n", result.CompileTime, sizeInfo)
 				successCount++
 			} else {
 				fmt.Printf("    ✗ Client compilation failed: %v\n", result.Error)
@@ -220,7 +270,19 @@ func (r *Resource) compileMerged(compiler *CLICompiler, inputPath, outputFile st
 				fmt.Printf("    ✗ Server compilation failed: %v\n", err)
 				errorCount++
 			} else if result.Success {
-				fmt.Printf("    ✓ Server compilation successful: server.luac (%v)\n", result.CompileTime)
+				// Format size information for merged server files
+				sizeInfo := ""
+				if result.InputSize > 0 && result.OutputSize > 0 {
+					reduction := (1.0 - result.CompressionRatio) * 100
+					if reduction > 0 {
+						sizeInfo = fmt.Sprintf(" [%s → %s, %.0f%% reduction]",
+							formatSize(result.InputSize), formatSize(result.OutputSize), reduction)
+					} else {
+						sizeInfo = fmt.Sprintf(" [%s → %s]",
+							formatSize(result.InputSize), formatSize(result.OutputSize))
+					}
+				}
+				fmt.Printf("    ✓ Server compilation successful: server.luac (%v)%s\n", result.CompileTime, sizeInfo)
 				successCount++
 			} else {
 				fmt.Printf("    ✗ Server compilation failed: %v\n", result.Error)
@@ -254,6 +316,11 @@ func (r *Resource) compileMergedFiles(compiler *CLICompiler, filePaths []string,
 		result.Error = err
 		result.CompileTime = time.Since(startTime)
 		return result, err
+	}
+
+	// Calculate total input size
+	if inputSize, err := calculateTotalSize(filePaths); err == nil {
+		result.InputSize = inputSize
 	}
 
 	// Ensure output directory exists
@@ -310,5 +377,12 @@ func (r *Resource) compileMergedFiles(compiler *CLICompiler, filePaths []string,
 	}
 
 	result.Success = true
+
+	// Calculate output file size and update metrics
+	if outputSize, err := calculateFileSize(outputPath); err == nil {
+		result.OutputSize = outputSize
+		updateSizeMetrics(result)
+	}
+
 	return result, nil
 }

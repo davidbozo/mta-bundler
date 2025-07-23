@@ -43,7 +43,7 @@ func init() {
 
 func main() {
 	flag.Parse()
-	
+
 	if err := runCompiler(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -71,7 +71,7 @@ func runCompiler() error {
 	if len(args) == 0 {
 		return fmt.Errorf("no input path provided")
 	}
-	
+
 	if len(args) > 1 {
 		return fmt.Errorf("only one input path is allowed, got %d arguments", len(args))
 	}
@@ -140,7 +140,7 @@ func compileResources(inputPath string, obfuscationLevel int) error {
 	if fileInfo.IsDir() {
 		// If it's a directory, find all meta.xml files
 		fmt.Println("Searching for meta.xml files in directory...")
-		metaPaths, err := FindMTAResourceMetas(inputPath)
+		metaPaths, err = FindMTAResourceMetas(inputPath)
 		if err != nil {
 			return fmt.Errorf("error finding meta.xml files: %v", err)
 		}
@@ -187,4 +187,3 @@ func compileResources(inputPath string, obfuscationLevel int) error {
 
 	return nil
 }
-

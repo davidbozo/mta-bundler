@@ -51,19 +51,25 @@ type CompilationOptions struct {
 
 // CompilationResult holds the result of a single file compilation operation
 type CompilationResult struct {
-	InputFile   string
-	OutputFile  string
-	Success     bool
-	Error       error
-	CompileTime time.Duration
+	InputFile        string
+	OutputFile       string
+	Success          bool
+	Error            error
+	CompileTime      time.Duration
+	InputSize        int64   // Size before compilation in bytes
+	OutputSize       int64   // Size after compilation in bytes
+	CompressionRatio float64 // Compression ratio (0-1, where 0.2 = 20% of original size)
 }
 
 // BatchCompilationResult holds the results of multiple file compilations
 type BatchCompilationResult struct {
-	Results      []CompilationResult
-	TotalTime    time.Duration
-	SuccessCount int
-	ErrorCount   int
+	Results         []CompilationResult
+	TotalTime       time.Duration
+	SuccessCount    int
+	ErrorCount      int
+	TotalInputSize  int64   // Total size before compilation
+	TotalOutputSize int64   // Total size after compilation
+	TotalRatio      float64 // Overall compression ratio
 }
 
 // LuaCompiler interface defines the contract for Lua compilation
@@ -159,6 +165,11 @@ func (c *CLICompiler) CompileFile(filePath string, outputPath string, options Co
 		OutputFile: outputPath,
 	}
 
+	// Calculate input file size
+	if inputSize, err := calculateFileSize(filePath); err == nil {
+		result.InputSize = inputSize
+	}
+
 	// Validate input file
 	if err := c.ValidateFiles([]string{filePath}); err != nil {
 		result.Error = err
@@ -189,6 +200,13 @@ func (c *CLICompiler) CompileFile(filePath string, outputPath string, options Co
 	}
 
 	result.Success = true
+	
+	// Calculate output file size and update metrics
+	if outputSize, err := calculateFileSize(outputPath); err == nil {
+		result.OutputSize = outputSize
+		updateSizeMetrics(result)
+	}
+	
 	return result, nil
 }
 
@@ -203,6 +221,11 @@ func (c *CLICompiler) compileMerged(filePaths []string, options CompilationOptio
 	result := CompilationResult{
 		InputFile:  strings.Join(filePaths, ", "),
 		OutputFile: outputPath,
+	}
+
+	// Calculate total input size
+	if inputSize, err := calculateTotalSize(filePaths); err == nil {
+		result.InputSize = inputSize
 	}
 
 	// Build command arguments
@@ -222,9 +245,18 @@ func (c *CLICompiler) compileMerged(filePaths []string, options CompilationOptio
 	} else {
 		result.Success = true
 		batchResult.SuccessCount = 1
+		
+		// Calculate output file size and update metrics
+		if outputSize, err := calculateFileSize(outputPath); err == nil {
+			result.OutputSize = outputSize
+			updateSizeMetrics(&result)
+		}
 	}
 
 	batchResult.Results = append(batchResult.Results, result)
+	
+	// Update batch size metrics
+	updateBatchSizeMetrics(batchResult)
 
 	if err != nil {
 		return batchResult, result.Error
@@ -264,6 +296,11 @@ func (c *CLICompiler) compileIndividual(filePaths []string, options CompilationO
 			OutputFile: outputPath,
 		}
 
+		// Calculate input file size
+		if inputSize, err := calculateFileSize(inputPath); err == nil {
+			result.InputSize = inputSize
+		}
+
 		// Ensure output subdirectory exists
 		if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
 			result.Error = fmt.Errorf("failed to create output subdirectory: %w", err)
@@ -291,12 +328,21 @@ func (c *CLICompiler) compileIndividual(filePaths []string, options CompilationO
 		} else {
 			result.Success = true
 			batchResult.SuccessCount++
+			
+			// Calculate output file size and update metrics
+			if outputSize, err := calculateFileSize(outputPath); err == nil {
+				result.OutputSize = outputSize
+				updateSizeMetrics(&result)
+			}
 		}
 
 		batchResult.Results = append(batchResult.Results, result)
 	}
 
 	batchResult.TotalTime = time.Since(startTime)
+	
+	// Update batch size metrics
+	updateBatchSizeMetrics(batchResult)
 
 	if hasErrors {
 		return batchResult, fmt.Errorf("compilation completed with %d errors out of %d files", batchResult.ErrorCount, len(filePaths))
@@ -335,6 +381,66 @@ func (c *CLICompiler) buildArgs(options CompilationOptions, outputPath string) [
 	}
 
 	return args
+}
+
+// calculateFileSize returns the size of a file in bytes
+func calculateFileSize(filePath string) (int64, error) {
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get file info for %s: %w", filePath, err)
+	}
+	return fileInfo.Size(), nil
+}
+
+// calculateTotalSize returns the total size of multiple files in bytes
+func calculateTotalSize(filePaths []string) (int64, error) {
+	var totalSize int64
+	for _, filePath := range filePaths {
+		size, err := calculateFileSize(filePath)
+		if err != nil {
+			return 0, err
+		}
+		totalSize += size
+	}
+	return totalSize, nil
+}
+
+// updateSizeMetrics calculates and updates size-related metrics in the compilation result
+func updateSizeMetrics(result *CompilationResult) {
+	if result.InputSize > 0 && result.OutputSize > 0 {
+		result.CompressionRatio = float64(result.OutputSize) / float64(result.InputSize)
+	}
+}
+
+// updateBatchSizeMetrics calculates and updates total size metrics for batch results
+func updateBatchSizeMetrics(batchResult *BatchCompilationResult) {
+	batchResult.TotalInputSize = 0
+	batchResult.TotalOutputSize = 0
+	
+	for _, result := range batchResult.Results {
+		if result.Success {
+			batchResult.TotalInputSize += result.InputSize
+			batchResult.TotalOutputSize += result.OutputSize
+		}
+	}
+	
+	if batchResult.TotalInputSize > 0 {
+		batchResult.TotalRatio = float64(batchResult.TotalOutputSize) / float64(batchResult.TotalInputSize)
+	}
+}
+
+// formatSize formats a size in bytes to a human-readable string
+func formatSize(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
 
 // Example usage and helper functions
