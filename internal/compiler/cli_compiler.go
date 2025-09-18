@@ -15,12 +15,12 @@ type CLICompiler struct {
 }
 
 // NewCLICompiler creates a new CLI-based Lua compiler
-func NewCLICompiler(binaryPath string) (*CLICompiler, error) {
+func NewCLICompiler(binaryPath string) (CLICompiler, error) {
 	if binaryPath == "" {
-		return nil, fmt.Errorf("binaryPath cannot be empty")
+		return CLICompiler{}, fmt.Errorf("binaryPath cannot be empty")
 	}
 
-	compiler := &CLICompiler{
+	compiler := CLICompiler{
 		binaryPath: binaryPath,
 	}
 
@@ -28,12 +28,12 @@ func NewCLICompiler(binaryPath string) (*CLICompiler, error) {
 }
 
 // GetBinaryPath returns the path to the luac_mta binary
-func (c *CLICompiler) GetBinaryPath() (string, error) {
+func (c CLICompiler) GetBinaryPath() (string, error) {
 	return c.binaryPath, nil
 }
 
 // ValidateFiles checks if all provided files exist and are Lua files
-func (c *CLICompiler) ValidateFiles(filePaths []string) error {
+func (c CLICompiler) ValidateFiles(filePaths []string) error {
 	if len(filePaths) == 0 {
 		return fmt.Errorf("no files provided")
 	}
@@ -58,7 +58,7 @@ func (c *CLICompiler) ValidateFiles(filePaths []string) error {
 }
 
 // Compile compiles multiple Lua files into a single merged output file
-func (c *CLICompiler) Compile(filePaths []string, outputPath string, options CompilationOptions) (*CompilationResult, error) {
+func (c CLICompiler) Compile(filePaths []string, outputPath string, options CompilationOptions) (*CompilationResult, error) {
 	startTime := time.Now()
 
 	result := &CompilationResult{
@@ -112,7 +112,7 @@ func (c *CLICompiler) Compile(filePaths []string, outputPath string, options Com
 }
 
 // CompileFile compiles a single Lua file
-func (c *CLICompiler) CompileFile(filePath string, outputPath string, options CompilationOptions) (*CompilationResult, error) {
+func (c CLICompiler) CompileFile(filePath string, outputPath string, options CompilationOptions) (*CompilationResult, error) {
 	startTime := time.Now()
 
 	result := &CompilationResult{
@@ -166,7 +166,7 @@ func (c *CLICompiler) CompileFile(filePath string, outputPath string, options Co
 }
 
 // buildArgs builds the command line arguments for luac_mta
-func (c *CLICompiler) buildArgs(options CompilationOptions, outputPath string) []string {
+func (c CLICompiler) buildArgs(options CompilationOptions, outputPath string) []string {
 	var args []string
 
 	// Output file

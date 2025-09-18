@@ -10,7 +10,7 @@ import (
 )
 
 // Compile compiles all Lua scripts in the resource
-func (r *Resource) Compile(comp *compiler.CLICompiler, inputPath, outputFile string, options compiler.CompilationOptions, mergeMode bool) error {
+func (r *Resource) Compile(comp compiler.CLICompiler, inputPath, outputFile string, options compiler.CompilationOptions, mergeMode bool) error {
 	fmt.Printf("Compiling resource: %s\n", r.Name)
 	fmt.Printf("Base directory: %s\n", r.BaseDir)
 
@@ -22,7 +22,7 @@ func (r *Resource) Compile(comp *compiler.CLICompiler, inputPath, outputFile str
 }
 
 // compileIndividual compiles each file individually (original behavior)
-func (r *Resource) compileIndividual(comp *compiler.CLICompiler, inputPath, outputFile string, options compiler.CompilationOptions) error {
+func (r *Resource) compileIndividual(comp compiler.CLICompiler, inputPath, outputFile string, options compiler.CompilationOptions) error {
 	// Get all Lua script files
 	luaFiles := r.GetLuaFiles()
 	if len(luaFiles) == 0 {
@@ -153,7 +153,7 @@ func (r *Resource) compileIndividual(comp *compiler.CLICompiler, inputPath, outp
 }
 
 // compileMerged compiles scripts into client.luac and server.luac files
-func (r *Resource) compileMerged(comp *compiler.CLICompiler, inputPath, outputFile string, options compiler.CompilationOptions) error {
+func (r *Resource) compileMerged(comp compiler.CLICompiler, inputPath, outputFile string, options compiler.CompilationOptions) error {
 	// Get scripts grouped by type
 	clientFiles, serverFiles, sharedFiles := r.GetLuaFilesByType()
 
@@ -310,6 +310,6 @@ func (r *Resource) compileMerged(comp *compiler.CLICompiler, inputPath, outputFi
 }
 
 // compileMergedFiles compiles multiple Lua files into a single output file using the compiler's Compile method
-func (r *Resource) compileMergedFiles(comp *compiler.CLICompiler, filePaths []string, outputPath string, options compiler.CompilationOptions) (*compiler.CompilationResult, error) {
+func (r *Resource) compileMergedFiles(comp compiler.CLICompiler, filePaths []string, outputPath string, options compiler.CompilationOptions) (*compiler.CompilationResult, error) {
 	return comp.Compile(filePaths, outputPath, options)
 }
