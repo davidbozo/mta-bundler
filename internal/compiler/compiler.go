@@ -6,16 +6,6 @@ import (
 	"time"
 )
 
-// CompilationMode defines how files should be compiled
-type CompilationMode int
-
-const (
-	// ModeIndividual compiles each file to its own output, preserving directory structure
-	ModeIndividual CompilationMode = iota
-	// ModeMerged compiles all files into a single output file
-	ModeMerged
-)
-
 // ObfuscationLevel defines the level of code obfuscation
 type ObfuscationLevel int
 
@@ -38,10 +28,6 @@ type CompilationOptions struct {
 	StripDebug bool
 	// SuppressDecompileWarning suppresses decompile warnings
 	SuppressDecompileWarning bool
-	// Mode determines how files are compiled
-	Mode CompilationMode
-	// OutputPath is the output file path (for merged mode) or output directory (for individual mode)
-	OutputPath string
 	// BinaryPath is the path to luac_mta executable (optional, will auto-detect)
 	BinaryPath string
 }
@@ -58,22 +44,11 @@ type CompilationResult struct {
 	CompressionRatio float64 // Compression ratio (0-1, where 0.2 = 20% of original size)
 }
 
-// BatchCompilationResult holds the results of multiple file compilations
-type BatchCompilationResult struct {
-	Results         []CompilationResult
-	TotalTime       time.Duration
-	SuccessCount    int
-	ErrorCount      int
-	TotalInputSize  int64   // Total size before compilation
-	TotalOutputSize int64   // Total size after compilation
-	TotalRatio      float64 // Overall compression ratio
-}
-
 // LuaCompiler interface defines the contract for Lua compilation
 type LuaCompiler interface {
-	// Compile compiles the given Lua files according to the provided options
-	Compile(filePaths []string, options CompilationOptions) (*BatchCompilationResult, error)
-	// CompileFile compiles a single Lua file
+	// Compile compiles multiple Lua files into a single merged output file
+	Compile(filePaths []string, outputPath string, options CompilationOptions) (*CompilationResult, error)
+	// CompileFile compiles a single Lua file to its individual output
 	CompileFile(filePath string, outputPath string, options CompilationOptions) (*CompilationResult, error)
 	// ValidateFiles checks if all provided files exist and are valid
 	ValidateFiles(filePaths []string) error
@@ -110,23 +85,6 @@ func UpdateSizeMetrics(result *CompilationResult) {
 	}
 }
 
-// updateBatchSizeMetrics calculates and updates total size metrics for batch results
-func updateBatchSizeMetrics(batchResult *BatchCompilationResult) {
-	batchResult.TotalInputSize = 0
-	batchResult.TotalOutputSize = 0
-
-	for _, result := range batchResult.Results {
-		if result.Success {
-			batchResult.TotalInputSize += result.InputSize
-			batchResult.TotalOutputSize += result.OutputSize
-		}
-	}
-
-	if batchResult.TotalInputSize > 0 {
-		batchResult.TotalRatio = float64(batchResult.TotalOutputSize) / float64(batchResult.TotalInputSize)
-	}
-}
-
 // FormatSize formats a size in bytes to a human-readable string
 func FormatSize(bytes int64) string {
 	const unit = 1024
@@ -141,23 +99,11 @@ func FormatSize(bytes int64) string {
 	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
 
-// Example usage and helper functions
-
 // DefaultOptions returns sensible default compilation options
 func DefaultOptions() CompilationOptions {
 	return CompilationOptions{
 		ObfuscationLevel:         ObfuscationMaximum,
 		StripDebug:               true,
 		SuppressDecompileWarning: true,
-		Mode:                     ModeIndividual,
-		OutputPath:               "luac.out",
 	}
-}
-
-// MergedOptions returns options configured for merged compilation
-func MergedOptions(outputFile string) CompilationOptions {
-	opts := DefaultOptions()
-	opts.Mode = ModeMerged
-	opts.OutputPath = outputFile
-	return opts
 }

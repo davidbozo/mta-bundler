@@ -3,9 +3,7 @@ package resource
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/davidbozo/mta-bundler/internal/compiler"
@@ -311,87 +309,7 @@ func (r *Resource) compileMerged(comp *compiler.CLICompiler, inputPath, outputFi
 	return nil
 }
 
-// compileMergedFiles compiles multiple Lua files into a single output file
+// compileMergedFiles compiles multiple Lua files into a single output file using the compiler's Compile method
 func (r *Resource) compileMergedFiles(comp *compiler.CLICompiler, filePaths []string, outputPath string, options compiler.CompilationOptions) (*compiler.CompilationResult, error) {
-	startTime := time.Now()
-
-	result := &compiler.CompilationResult{
-		InputFile:  strings.Join(filePaths, ", "),
-		OutputFile: outputPath,
-	}
-
-	// Validate input files
-	if err := comp.ValidateFiles(filePaths); err != nil {
-		result.Error = err
-		result.CompileTime = time.Since(startTime)
-		return result, err
-	}
-
-	// Calculate total input size
-	if inputSize, err := compiler.CalculateTotalSize(filePaths); err == nil {
-		result.InputSize = inputSize
-	}
-
-	// Ensure output directory exists
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
-		result.Error = fmt.Errorf("failed to create output directory: %w", err)
-		result.CompileTime = time.Since(startTime)
-		return result, result.Error
-	}
-
-	// Build command arguments for merged compilation
-	args := []string{"-o", outputPath}
-
-	// Strip debug information
-	if options.StripDebug {
-		args = append(args, "-s")
-	}
-
-	// Obfuscation level
-	switch options.ObfuscationLevel {
-	case compiler.ObfuscationBasic:
-		args = append(args, "-e")
-	case compiler.ObfuscationEnhanced:
-		args = append(args, "-e2")
-	case compiler.ObfuscationMaximum:
-		args = append(args, "-e3")
-	case compiler.ObfuscationNone:
-		// No obfuscation flag needed
-	}
-
-	// Suppress decompile warning
-	if options.SuppressDecompileWarning {
-		args = append(args, "-d")
-	}
-
-	// Add all input files
-	args = append(args, filePaths...)
-
-	// Execute compilation
-	binaryPath, err := comp.GetBinaryPath()
-	if err != nil {
-		result.Error = fmt.Errorf("failed to get binary path: %w", err)
-		result.CompileTime = time.Since(startTime)
-		return result, result.Error
-	}
-
-	cmd := exec.Command(binaryPath, args...)
-	output, err := cmd.CombinedOutput()
-
-	result.CompileTime = time.Since(startTime)
-
-	if err != nil {
-		result.Error = fmt.Errorf("compilation failed: %w\nOutput: %s", err, string(output))
-		return result, result.Error
-	}
-
-	result.Success = true
-
-	// Calculate output file size and update metrics
-	if outputSize, err := compiler.CalculateFileSize(outputPath); err == nil {
-		result.OutputSize = outputSize
-		compiler.UpdateSizeMetrics(result)
-	}
-
-	return result, nil
+	return comp.Compile(filePaths, outputPath, options)
 }
