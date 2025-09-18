@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/davidbozo/mta-bundler/internal/resource"
 	"github.com/davidbozo/mta-bundler/internal/compiler"
+	"github.com/davidbozo/mta-bundler/internal/resource"
 )
 
 var (
@@ -28,7 +28,7 @@ var (
 func init() {
 	flag.Usage = func() {
 		binaryName := filepath.Base(os.Args[0])
-		fmt.Fprintf(os.Stderr, "MTA Lua Compiler - Compile and obfuscate Lua scripts for Multi Theft Auto\n\n")
+		fmt.Fprintf(os.Stderr, "MTA Lua Compiler - Compile and obfuscate Lua resources for Multi Theft Auto\n\n")
 		fmt.Fprintf(os.Stderr, "Usage: %s [options] input_path\n\n", binaryName)
 		fmt.Fprintf(os.Stderr, "MTA Lua Compiler accepts only two input types:\n")
 		fmt.Fprintf(os.Stderr, "  • Single meta.xml file - Compiles all referenced scripts in the resource\n")

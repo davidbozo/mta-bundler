@@ -102,7 +102,6 @@ func NewCLICompiler(binaryPath string) (*CLICompiler, error) {
 	return compiler, nil
 }
 
-
 // GetBinaryPath returns the path to the luac_mta binary
 func (c *CLICompiler) GetBinaryPath() (string, error) {
 	return c.binaryPath, nil
@@ -200,13 +199,13 @@ func (c *CLICompiler) CompileFile(filePath string, outputPath string, options Co
 	}
 
 	result.Success = true
-	
+
 	// Calculate output file size and update metrics
 	if outputSize, err := CalculateFileSize(outputPath); err == nil {
 		result.OutputSize = outputSize
 		UpdateSizeMetrics(result)
 	}
-	
+
 	return result, nil
 }
 
@@ -245,7 +244,7 @@ func (c *CLICompiler) compileMerged(filePaths []string, options CompilationOptio
 	} else {
 		result.Success = true
 		batchResult.SuccessCount = 1
-		
+
 		// Calculate output file size and update metrics
 		if outputSize, err := CalculateFileSize(outputPath); err == nil {
 			result.OutputSize = outputSize
@@ -254,7 +253,7 @@ func (c *CLICompiler) compileMerged(filePaths []string, options CompilationOptio
 	}
 
 	batchResult.Results = append(batchResult.Results, result)
-	
+
 	// Update batch size metrics
 	updateBatchSizeMetrics(batchResult)
 
@@ -328,7 +327,7 @@ func (c *CLICompiler) compileIndividual(filePaths []string, options CompilationO
 		} else {
 			result.Success = true
 			batchResult.SuccessCount++
-			
+
 			// Calculate output file size and update metrics
 			if outputSize, err := CalculateFileSize(outputPath); err == nil {
 				result.OutputSize = outputSize
@@ -340,7 +339,7 @@ func (c *CLICompiler) compileIndividual(filePaths []string, options CompilationO
 	}
 
 	batchResult.TotalTime = time.Since(startTime)
-	
+
 	// Update batch size metrics
 	updateBatchSizeMetrics(batchResult)
 
@@ -416,14 +415,14 @@ func UpdateSizeMetrics(result *CompilationResult) {
 func updateBatchSizeMetrics(batchResult *BatchCompilationResult) {
 	batchResult.TotalInputSize = 0
 	batchResult.TotalOutputSize = 0
-	
+
 	for _, result := range batchResult.Results {
 		if result.Success {
 			batchResult.TotalInputSize += result.InputSize
 			batchResult.TotalOutputSize += result.OutputSize
 		}
 	}
-	
+
 	if batchResult.TotalInputSize > 0 {
 		batchResult.TotalRatio = float64(batchResult.TotalOutputSize) / float64(batchResult.TotalInputSize)
 	}
