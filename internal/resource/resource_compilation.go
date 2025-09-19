@@ -224,7 +224,7 @@ func (r *Resource) compileMerged(comp compiler.CLICompiler, inputPath, outputFil
 			}
 
 			fmt.Printf("  Compiling client files to client.luac...\n")
-			result, err := r.compileMergedFiles(comp, clientPaths, clientOutputPath, options)
+			result, err := comp.Compile(clientPaths, clientOutputPath, options)
 			if err != nil {
 				fmt.Printf("    ✗ Client compilation failed: %v\n", err)
 				errorCount++
@@ -272,7 +272,7 @@ func (r *Resource) compileMerged(comp compiler.CLICompiler, inputPath, outputFil
 			}
 
 			fmt.Printf("  Compiling server files to server.luac...\n")
-			result, err := r.compileMergedFiles(comp, serverPaths, serverOutputPath, options)
+			result, err := comp.Compile(serverPaths, serverOutputPath, options)
 			if err != nil {
 				fmt.Printf("    ✗ Server compilation failed: %v\n", err)
 				errorCount++
@@ -309,7 +309,3 @@ func (r *Resource) compileMerged(comp compiler.CLICompiler, inputPath, outputFil
 	return nil
 }
 
-// compileMergedFiles compiles multiple Lua files into a single output file using the compiler's Compile method
-func (r *Resource) compileMergedFiles(comp compiler.CLICompiler, filePaths []string, outputPath string, options compiler.CompilationOptions) (*compiler.CompilationResult, error) {
-	return comp.Compile(filePaths, outputPath, options)
-}
