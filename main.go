@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/davidbozo/mta-bundler/internal/bundler"
 	"github.com/davidbozo/mta-bundler/internal/compiler"
 	"github.com/davidbozo/mta-bundler/internal/resource"
 )
@@ -179,7 +180,9 @@ func compileResources(inputPath string, obfuscationLevel int) error {
 			SuppressDecompileWarning: *suppressWarn,
 		}
 
-		err = res.Compile(cliCompiler, inputPath, *outputFile, options, *mergeMode)
+		// Create bundler and compile resource
+		resourceBundler := bundler.NewResourceBundler(cliCompiler, options)
+		err = resourceBundler.CompileResource(res, inputPath, *outputFile, *mergeMode)
 		if err != nil {
 			fmt.Printf("Error compiling resource %s: %v\n", res.Name, err)
 			continue

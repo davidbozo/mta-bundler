@@ -1,4 +1,4 @@
-package resource
+package bundler
 
 import (
 	"fmt"
@@ -7,22 +7,37 @@ import (
 	"time"
 
 	"github.com/davidbozo/mta-bundler/internal/compiler"
+	"github.com/davidbozo/mta-bundler/internal/resource"
 )
 
-// Compile compiles all Lua scripts in the resource
-func (r *Resource) Compile(comp compiler.CLICompiler, inputPath, outputFile string, options compiler.CompilationOptions, mergeMode bool) error {
+// ResourceBundler orchestrates the compilation of MTA resources
+type ResourceBundler struct {
+	compiler compiler.CLICompiler
+	options  compiler.CompilationOptions
+}
+
+// NewResourceBundler creates a new ResourceBundler instance
+func NewResourceBundler(comp compiler.CLICompiler, options compiler.CompilationOptions) *ResourceBundler {
+	return &ResourceBundler{
+		compiler: comp,
+		options:  options,
+	}
+}
+
+// CompileResource compiles an MTA resource using either individual or merged mode
+func (rb *ResourceBundler) CompileResource(r *resource.Resource, inputPath, outputFile string, mergeMode bool) error {
 	fmt.Printf("Compiling resource: %s\n", r.Name)
 	fmt.Printf("Base directory: %s\n", r.BaseDir)
 
 	if mergeMode {
-		return r.compileMerged(comp, inputPath, outputFile, options)
+		return rb.compileMerged(r, inputPath, outputFile)
 	} else {
-		return r.compileIndividual(comp, inputPath, outputFile, options)
+		return rb.compileIndividual(r, inputPath, outputFile)
 	}
 }
 
 // compileIndividual compiles each file individually (original behavior)
-func (r *Resource) compileIndividual(comp compiler.CLICompiler, inputPath, outputFile string, options compiler.CompilationOptions) error {
+func (rb *ResourceBundler) compileIndividual(r *resource.Resource, inputPath, outputFile string) error {
 	// Get all Lua script files
 	luaFiles := r.GetLuaFiles()
 	if len(luaFiles) == 0 {
@@ -39,7 +54,7 @@ func (r *Resource) compileIndividual(comp compiler.CLICompiler, inputPath, outpu
 	}
 
 	// Determine base output directory
-	baseOutputDir, err := r.getBaseOutputDir(outputFile)
+	baseOutputDir, err := r.GetBaseOutputDir(outputFile)
 	if err != nil {
 		return err
 	}
@@ -50,18 +65,18 @@ func (r *Resource) compileIndividual(comp compiler.CLICompiler, inputPath, outpu
 	}
 
 	// Copy meta.xml file to output directory
-	if err := r.copyMetaFile(baseOutputDir, absInputPath, outputFile); err != nil {
+	if err := r.CopyMetaFile(baseOutputDir, absInputPath, outputFile); err != nil {
 		return fmt.Errorf("failed to copy meta.xml: %v", err)
 	}
 
 	// Copy all non-script file references to output directory
-	copyResult, err := r.copyFileReferences(baseOutputDir, absInputPath, outputFile)
+	copyResult, err := r.CopyFileReferences(baseOutputDir, absInputPath, outputFile)
 	if err != nil {
 		return fmt.Errorf("failed to copy file references: %v", err)
 	}
 
 	// Log file copy results
-	printFileCopyResults(copyResult)
+	rb.printFileCopyResults(copyResult)
 
 	// Compile each file individually while preserving directory structure
 	var successCount, errorCount int
@@ -70,7 +85,7 @@ func (r *Resource) compileIndividual(comp compiler.CLICompiler, inputPath, outpu
 	for _, fileRef := range luaFiles {
 		fmt.Printf("  Processing: %s\n", fileRef.RelativePath)
 
-		outputPath, err := r.calculateOutputPath(absInputPath, outputFile, baseOutputDir, fileRef)
+		outputPath, err := r.CalculateOutputPath(absInputPath, outputFile, baseOutputDir, fileRef)
 		if err != nil {
 			fmt.Printf("    ✗ Failed to calculate output path: %v\n", err)
 			errorCount++
@@ -85,7 +100,7 @@ func (r *Resource) compileIndividual(comp compiler.CLICompiler, inputPath, outpu
 		}
 
 		// Compile the file
-		result, err := comp.CompileFile(fileRef.FullPath, outputPath, options)
+		result, err := rb.compiler.CompileFile(fileRef.FullPath, outputPath, rb.options)
 		if err != nil {
 			fmt.Printf("    ✗ %s: %v\n", fileRef.RelativePath, err)
 			errorCount++
@@ -129,7 +144,7 @@ func (r *Resource) compileIndividual(comp compiler.CLICompiler, inputPath, outpu
 
 	// Sum up output sizes from successful compilations
 	for _, fileRef := range luaFiles {
-		outputPath, err := r.calculateOutputPath(absInputPath, outputFile, baseOutputDir, fileRef)
+		outputPath, err := r.CalculateOutputPath(absInputPath, outputFile, baseOutputDir, fileRef)
 		if err == nil {
 			if info, err := os.Stat(outputPath); err == nil {
 				totalOutputSize += info.Size()
@@ -140,7 +155,7 @@ func (r *Resource) compileIndividual(comp compiler.CLICompiler, inputPath, outpu
 	fmt.Printf("  Compilation completed: %d successful, %d errors\n", successCount, errorCount)
 	if totalInputSize > 0 && totalOutputSize > 0 && successCount > 0 {
 		reduction := (1.0 - float64(totalOutputSize)/float64(totalInputSize)) * 100
-		fmt.Printf("  Resource size summary: %s \u2192 %s (%.0f%% reduction)\n",
+		fmt.Printf("  Resource size summary: %s → %s (%.0f%% reduction)\n",
 			compiler.FormatSize(totalInputSize), compiler.FormatSize(totalOutputSize), reduction)
 	}
 	fmt.Printf("  Total time: %v\n", totalTime)
@@ -153,7 +168,7 @@ func (r *Resource) compileIndividual(comp compiler.CLICompiler, inputPath, outpu
 }
 
 // compileMerged compiles scripts into client.luac and server.luac files
-func (r *Resource) compileMerged(comp compiler.CLICompiler, inputPath, outputFile string, options compiler.CompilationOptions) error {
+func (rb *ResourceBundler) compileMerged(r *resource.Resource, inputPath, outputFile string) error {
 	// Get scripts grouped by type
 	clientFiles, serverFiles, sharedFiles := r.GetLuaFilesByType()
 
@@ -176,7 +191,7 @@ func (r *Resource) compileMerged(comp compiler.CLICompiler, inputPath, outputFil
 	}
 
 	// Determine base output directory
-	baseOutputDir, err := r.getBaseOutputDir(outputFile)
+	baseOutputDir, err := r.GetBaseOutputDir(outputFile)
 	if err != nil {
 		return err
 	}
@@ -187,17 +202,17 @@ func (r *Resource) compileMerged(comp compiler.CLICompiler, inputPath, outputFil
 	}
 
 	// Copy meta.xml file to output directory (will be updated for merged files)
-	if err := r.copyMergedMetaFile(baseOutputDir, absInputPath, outputFile, len(allClientFiles) > 0, len(allServerFiles) > 0); err != nil {
+	if err := r.CopyMergedMetaFile(baseOutputDir, absInputPath, outputFile, len(allClientFiles) > 0, len(allServerFiles) > 0); err != nil {
 		return fmt.Errorf("failed to copy meta.xml: %v", err)
 	}
 
 	// Copy all non-script file references to output directory
-	copyResult, err := r.copyFileReferences(baseOutputDir, absInputPath, outputFile)
+	copyResult, err := r.CopyFileReferences(baseOutputDir, absInputPath, outputFile)
 	if err != nil {
 		return fmt.Errorf("failed to copy file references: %v", err)
 	}
 
-	printFileCopyResults(copyResult)
+	rb.printFileCopyResults(copyResult)
 
 	var successCount, errorCount int
 	totalStartTime := time.Now()
@@ -224,7 +239,7 @@ func (r *Resource) compileMerged(comp compiler.CLICompiler, inputPath, outputFil
 			}
 
 			fmt.Printf("  Compiling client files to client.luac...\n")
-			result, err := comp.Compile(clientPaths, clientOutputPath, options)
+			result, err := rb.compiler.Compile(clientPaths, clientOutputPath, rb.options)
 			if err != nil {
 				fmt.Printf("    ✗ Client compilation failed: %v\n", err)
 				errorCount++
@@ -272,7 +287,7 @@ func (r *Resource) compileMerged(comp compiler.CLICompiler, inputPath, outputFil
 			}
 
 			fmt.Printf("  Compiling server files to server.luac...\n")
-			result, err := comp.Compile(serverPaths, serverOutputPath, options)
+			result, err := rb.compiler.Compile(serverPaths, serverOutputPath, rb.options)
 			if err != nil {
 				fmt.Printf("    ✗ Server compilation failed: %v\n", err)
 				errorCount++
@@ -309,3 +324,17 @@ func (r *Resource) compileMerged(comp compiler.CLICompiler, inputPath, outputFil
 	return nil
 }
 
+// printFileCopyResults prints the results of file copy operations
+func (rb *ResourceBundler) printFileCopyResults(result resource.FileCopyBatchResult) {
+	if result.TotalFiles > 0 {
+		fmt.Printf("  Copied %d/%d non-script files", result.SuccessCount, result.TotalFiles)
+		if result.TotalSize > 0 {
+			fmt.Printf(" (%s)", compiler.FormatSize(result.TotalSize))
+		}
+		fmt.Println()
+
+		if result.ErrorCount > 0 {
+			fmt.Printf("  Warning: %d file copy errors\n", result.ErrorCount)
+		}
+	}
+}
