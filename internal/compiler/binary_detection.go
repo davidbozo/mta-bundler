@@ -12,8 +12,8 @@ type BinaryDetector struct {
 }
 
 // NewBinaryDetector creates a new binary detector instance with default providers
-func NewBinaryDetector() *BinaryDetector {
-	return &BinaryDetector{
+func NewBinaryDetector() BinaryDetector {
+	return BinaryDetector{
 		providers: []BinaryProvider{
 			NewLocalBinaryProvider(),
 			NewWebBinaryProvider(),
@@ -21,15 +21,8 @@ func NewBinaryDetector() *BinaryDetector {
 	}
 }
 
-// NewBinaryDetectorWithProviders creates a binary detector with custom providers
-func NewBinaryDetectorWithProviders(providers []BinaryProvider) *BinaryDetector {
-	return &BinaryDetector{
-		providers: providers,
-	}
-}
-
 // DetectPath attempts to find the luac_mta binary using configured providers
-func (bd *BinaryDetector) DetectPath() (string, error) {
+func (bd BinaryDetector) DetectPath() (string, error) {
 	if len(bd.providers) == 0 {
 		return "", fmt.Errorf("no binary providers configured")
 	}
@@ -52,7 +45,7 @@ func (bd *BinaryDetector) DetectPath() (string, error) {
 }
 
 // ValidatePath checks if the binary exists and is executable
-func (bd *BinaryDetector) ValidatePath(binaryPath string) error {
+func (bd BinaryDetector) ValidatePath(binaryPath string) error {
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 		return fmt.Errorf("binary not found: %s", binaryPath)
 	}
@@ -72,7 +65,7 @@ func (bd *BinaryDetector) ValidatePath(binaryPath string) error {
 }
 
 // DetectAndValidate performs both detection and validation in one step
-func (bd *BinaryDetector) DetectAndValidate() (string, error) {
+func (bd BinaryDetector) DetectAndValidate() (string, error) {
 	path, err := bd.DetectPath()
 	if err != nil {
 		return "", err
