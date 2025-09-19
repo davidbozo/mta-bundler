@@ -11,8 +11,8 @@ import (
 // luaToLuacRegex is the compiled regex pattern for replacing .lua with .luac in src attributes
 var luaToLuacRegex = regexp.MustCompile(`(src\s*=\s*"[^"]*?)\.lua(")|(src\s*=\s*'[^']*?)\.lua(')`)
 
-// copyMetaFile copies the meta.xml file to the output directory and updates lua file references to luac
-func (r *Resource) copyMetaFile(baseOutputDir, absInputPath, outputFile string) error {
+// CopyMetaFile copies the meta.xml file to the output directory and updates lua file references to luac
+func (r *Resource) CopyMetaFile(baseOutputDir, absInputPath, outputFile string) error {
 	// Calculate the output path for meta.xml
 	var outputPath string
 
@@ -77,8 +77,8 @@ func (r *Resource) CopyAndModifyMetaFile(src, dst string) error {
 	return nil
 }
 
-// copyMergedMetaFile copies the meta.xml file to the output directory and updates it for merged compilation
-func (r *Resource) copyMergedMetaFile(baseOutputDir, absInputPath, outputFile string, hasClientFiles, hasServerFiles bool) error {
+// CopyMergedMetaFile copies the meta.xml file to the output directory and updates it for merged compilation
+func (r *Resource) CopyMergedMetaFile(baseOutputDir, absInputPath, outputFile string, hasClientFiles, hasServerFiles bool) error {
 	// Calculate the output path for meta.xml
 	var outputPath string
 

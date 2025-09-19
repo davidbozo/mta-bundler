@@ -27,8 +27,8 @@ type FileCopyBatchResult struct {
 	TotalSize    int64            // Total size of all successfully copied files
 }
 
-// getBaseOutputDir determines the base output directory
-func (r *Resource) getBaseOutputDir(outputFile string) (string, error) {
+// GetBaseOutputDir determines the base output directory
+func (r *Resource) GetBaseOutputDir(outputFile string) (string, error) {
 	if outputFile != "" {
 		if filepath.IsAbs(outputFile) {
 			return outputFile, nil
@@ -45,8 +45,8 @@ func (r *Resource) getBaseOutputDir(outputFile string) (string, error) {
 	}
 }
 
-// calculateOutputPath calculates the output path for a file reference
-func (r *Resource) calculateOutputPath(absInputPath, outputFile, baseOutputDir string, fileRef FileReference) (string, error) {
+// CalculateOutputPath calculates the output path for a file reference
+func (r *Resource) CalculateOutputPath(absInputPath, outputFile, baseOutputDir string, fileRef FileReference) (string, error) {
 	baseName := r.generateOutputFilename(fileRef.RelativePath)
 
 	if outputFile != "" {
@@ -55,8 +55,8 @@ func (r *Resource) calculateOutputPath(absInputPath, outputFile, baseOutputDir s
 	return r.calculateOutputPathSameStructure(baseOutputDir, fileRef, baseName), nil
 }
 
-// copyFileReferences copies all non-script file references to the output directory
-func (r *Resource) copyFileReferences(baseOutputDir, absInputPath, outputFile string) (FileCopyBatchResult, error) {
+// CopyFileReferences copies all non-script file references to the output directory
+func (r *Resource) CopyFileReferences(baseOutputDir, absInputPath, outputFile string) (FileCopyBatchResult, error) {
 	nonScriptFiles := r.getNonScriptFiles()
 	result := FileCopyBatchResult{
 		Results:      make([]FileCopyResult, 0, len(nonScriptFiles)),
