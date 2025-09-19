@@ -27,11 +27,6 @@ func NewCLICompiler(binaryPath string) (CLICompiler, error) {
 	return compiler, nil
 }
 
-// GetBinaryPath returns the path to the luac_mta binary
-func (c CLICompiler) GetBinaryPath() (string, error) {
-	return c.binaryPath, nil
-}
-
 // ValidateFiles checks if all provided files exist and are Lua files
 func (c CLICompiler) ValidateFiles(filePaths []string) error {
 	if len(filePaths) == 0 {

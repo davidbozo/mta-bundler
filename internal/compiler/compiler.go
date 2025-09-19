@@ -52,8 +52,6 @@ type LuaCompiler interface {
 	CompileFile(filePath string, outputPath string, options CompilationOptions) (*CompilationResult, error)
 	// ValidateFiles checks if all provided files exist and are valid
 	ValidateFiles(filePaths []string) error
-	// GetBinaryPath returns the path to the luac_mta binary
-	GetBinaryPath() (string, error)
 }
 
 // CalculateFileSize returns the size of a file in bytes
