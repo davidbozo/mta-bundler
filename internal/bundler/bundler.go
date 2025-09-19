@@ -17,15 +17,15 @@ type ResourceBundler struct {
 }
 
 // NewResourceBundler creates a new ResourceBundler instance
-func NewResourceBundler(comp compiler.CLICompiler, options compiler.CompilationOptions) *ResourceBundler {
-	return &ResourceBundler{
+func NewResourceBundler(comp compiler.CLICompiler, options compiler.CompilationOptions) ResourceBundler {
+	return ResourceBundler{
 		compiler: comp,
 		options:  options,
 	}
 }
 
 // CompileResource compiles an MTA resource using either individual or merged mode
-func (rb *ResourceBundler) CompileResource(r *resource.Resource, inputPath, outputFile string, mergeMode bool) error {
+func (rb ResourceBundler) CompileResource(r *resource.Resource, inputPath, outputFile string, mergeMode bool) error {
 	fmt.Printf("Compiling resource: %s\n", r.Name)
 	fmt.Printf("Base directory: %s\n", r.BaseDir)
 
@@ -37,7 +37,7 @@ func (rb *ResourceBundler) CompileResource(r *resource.Resource, inputPath, outp
 }
 
 // compileIndividual compiles each file individually (original behavior)
-func (rb *ResourceBundler) compileIndividual(r *resource.Resource, inputPath, outputFile string) error {
+func (rb ResourceBundler) compileIndividual(r *resource.Resource, inputPath, outputFile string) error {
 	// Get all Lua script files
 	luaFiles := r.GetLuaFiles()
 	if len(luaFiles) == 0 {
@@ -168,7 +168,7 @@ func (rb *ResourceBundler) compileIndividual(r *resource.Resource, inputPath, ou
 }
 
 // compileMerged compiles scripts into client.luac and server.luac files
-func (rb *ResourceBundler) compileMerged(r *resource.Resource, inputPath, outputFile string) error {
+func (rb ResourceBundler) compileMerged(r *resource.Resource, inputPath, outputFile string) error {
 	// Get scripts grouped by type
 	clientFiles, serverFiles, sharedFiles := r.GetLuaFilesByType()
 
@@ -325,16 +325,17 @@ func (rb *ResourceBundler) compileMerged(r *resource.Resource, inputPath, output
 }
 
 // printFileCopyResults prints the results of file copy operations
-func (rb *ResourceBundler) printFileCopyResults(result resource.FileCopyBatchResult) {
-	if result.TotalFiles > 0 {
-		fmt.Printf("  Copied %d/%d non-script files", result.SuccessCount, result.TotalFiles)
-		if result.TotalSize > 0 {
-			fmt.Printf(" (%s)", compiler.FormatSize(result.TotalSize))
-		}
-		fmt.Println()
+func (rb ResourceBundler) printFileCopyResults(result resource.FileCopyBatchResult) {
+	if result.TotalFiles == 0 {
+		return
+	}
 
-		if result.ErrorCount > 0 {
-			fmt.Printf("  Warning: %d file copy errors\n", result.ErrorCount)
+	fmt.Printf("  Copying %d non-script file(s)\n", result.TotalFiles)
+	for _, copyResult := range result.Results {
+		if copyResult.Success {
+			fmt.Printf("    ✓ Copied %s\n", copyResult.RelativePath)
+		} else {
+			fmt.Printf("    ✗ Failed to copy %s: %v\n", copyResult.RelativePath, copyResult.Error)
 		}
 	}
 }
