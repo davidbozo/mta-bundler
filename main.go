@@ -6,6 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/davidbozo/mta-bundler/internal/compiler"
+	"github.com/davidbozo/mta-bundler/internal/resource"
 )
 
 var (
@@ -25,7 +28,7 @@ var (
 func init() {
 	flag.Usage = func() {
 		binaryName := filepath.Base(os.Args[0])
-		fmt.Fprintf(os.Stderr, "MTA Lua Compiler - Compile and obfuscate Lua scripts for Multi Theft Auto\n\n")
+		fmt.Fprintf(os.Stderr, "MTA Lua Compiler - Compile and obfuscate Lua resources for Multi Theft Auto\n\n")
 		fmt.Fprintf(os.Stderr, "Usage: %s [options] input_path\n\n", binaryName)
 		fmt.Fprintf(os.Stderr, "MTA Lua Compiler accepts only two input types:\n")
 		fmt.Fprintf(os.Stderr, "  • Single meta.xml file - Compiles all referenced scripts in the resource\n")
@@ -121,14 +124,14 @@ func compileResources(inputPath string, obfuscationLevel int) error {
 	fmt.Printf("Starting compilation for: %s\n", inputPath)
 
 	// Detect luac_mta binary path
-	detector := NewBinaryDetector()
+	detector := compiler.NewBinaryDetector()
 	binaryPath, err := detector.DetectAndValidate()
 	if err != nil {
 		return fmt.Errorf("failed to detect luac_mta binary: %v", err)
 	}
 
 	// Initialize the CLI compiler with detected binary path
-	compiler, err := NewCLICompiler(binaryPath)
+	cliCompiler, err := compiler.NewCLICompiler(binaryPath)
 	if err != nil {
 		return fmt.Errorf("failed to initialize compiler: %v", err)
 	}
@@ -163,26 +166,26 @@ func compileResources(inputPath string, obfuscationLevel int) error {
 	for i, metaPath := range metaPaths {
 		fmt.Printf("\n[%d/%d] Processing: %s\n", i+1, len(metaPaths), metaPath)
 
-		resource, err := NewResource(metaPath)
+		res, err := resource.NewResource(metaPath)
 		if err != nil {
 			fmt.Printf("Error processing %s: %v\n", metaPath, err)
 			continue
 		}
 
 		// Create compilation options
-		options := CompilationOptions{
-			ObfuscationLevel:         ObfuscationLevel(obfuscationLevel),
+		options := compiler.CompilationOptions{
+			ObfuscationLevel:         compiler.ObfuscationLevel(obfuscationLevel),
 			StripDebug:               *stripDebug,
 			SuppressDecompileWarning: *suppressWarn,
 		}
 
-		err = resource.Compile(compiler, inputPath, *outputFile, options, *mergeMode)
+		err = res.Compile(cliCompiler, inputPath, *outputFile, options, *mergeMode)
 		if err != nil {
-			fmt.Printf("Error compiling resource %s: %v\n", resource.Name, err)
+			fmt.Printf("Error compiling resource %s: %v\n", res.Name, err)
 			continue
 		}
 
-		fmt.Printf("Successfully compiled resource: %s\n", resource.Name)
+		fmt.Printf("Successfully compiled resource: %s\n", res.Name)
 	}
 
 	return nil

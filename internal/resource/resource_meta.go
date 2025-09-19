@@ -1,4 +1,4 @@
-package main
+package resource
 
 import (
 	"fmt"
@@ -39,7 +39,7 @@ func (r *Resource) copyMetaFile(baseOutputDir, absInputPath, outputFile string) 
 	}
 
 	// Copy and modify the meta.xml file
-	if err := r.copyAndModifyMetaFile(r.MetaXMLPath, outputPath); err != nil {
+	if err := r.CopyAndModifyMetaFile(r.MetaXMLPath, outputPath); err != nil {
 		return fmt.Errorf("failed to copy and modify meta.xml: %v", err)
 	}
 
@@ -48,7 +48,7 @@ func (r *Resource) copyMetaFile(baseOutputDir, absInputPath, outputFile string) 
 }
 
 // copyAndModifyMetaFile copies the meta.xml file and updates .lua file extensions to .luac using regex
-func (r *Resource) copyAndModifyMetaFile(src, dst string) error {
+func (r *Resource) CopyAndModifyMetaFile(src, dst string) error {
 	// Read the source meta.xml file
 	content, err := os.ReadFile(src)
 	if err != nil {
@@ -105,7 +105,7 @@ func (r *Resource) copyMergedMetaFile(baseOutputDir, absInputPath, outputFile st
 	}
 
 	// Copy and modify the meta.xml file for merged compilation
-	if err := r.copyAndModifyMergedMetaFile(r.MetaXMLPath, outputPath, hasClientFiles, hasServerFiles); err != nil {
+	if err := r.CopyAndModifyMergedMetaFile(r.MetaXMLPath, outputPath, hasClientFiles, hasServerFiles); err != nil {
 		return fmt.Errorf("failed to copy and modify meta.xml: %v", err)
 	}
 
@@ -114,7 +114,7 @@ func (r *Resource) copyMergedMetaFile(baseOutputDir, absInputPath, outputFile st
 }
 
 // copyAndModifyMergedMetaFile copies the meta.xml file and updates it for merged compilation
-func (r *Resource) copyAndModifyMergedMetaFile(src, dst string, hasClientFiles, hasServerFiles bool) error {
+func (r *Resource) CopyAndModifyMergedMetaFile(src, dst string, hasClientFiles, hasServerFiles bool) error {
 	// Read the source meta.xml file
 	content, err := os.ReadFile(src)
 	if err != nil {

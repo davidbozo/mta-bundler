@@ -1,4 +1,4 @@
-package main
+package resource
 
 import (
 	"encoding/xml"
@@ -28,36 +28,31 @@ type Meta struct {
 
 // Script represents a script file reference
 type Script struct {
-	Src      string `xml:"src,attr"`      // The file name of the source code
-	Type     string `xml:"type,attr"`     // "client", "server" or "shared"
-	Cache    string `xml:"cache,attr"`    // "true" or "false" (default: "true")
-	Validate string `xml:"validate,attr"` // "true" or "false" (default: "true")
+	Src  string `xml:"src,attr"`  // The file name of the source code
+	Type string `xml:"type,attr"` // "client", "server" or "shared"
 }
 
 // Map represents a map file reference
 type Map struct {
-	Src       string `xml:"src,attr"`       // .map file name (can be path too)
-	Dimension string `xml:"dimension,attr"` // Dimension in which the map will be loaded (optional)
+	Src string `xml:"src,attr"` // .map file name (can be path too)
 }
 
 // File represents a client-side file reference
 type File struct {
-	Src      string `xml:"src,attr"`      // Client-side file name (can be path too)
-	Download string `xml:"download,attr"` // "true" or "false" (default: "true")
+	Src string `xml:"src,attr"` // Client-side file name (can be path too)
 }
 
 // Config represents a config file reference
 type Config struct {
-	Src  string `xml:"src,attr"`  // The file name of the config file
-	Type string `xml:"type,attr"` // "client" or "server"
+	Src string `xml:"src,attr"` // The file name of the config file
 }
 
 // HTML represents an HTML file reference
 type HTML struct {
-	Src     string `xml:"src,attr"`     // The filename for the HTTP file (can be a path)
-	Default string `xml:"default,attr"` // "true" or "false" - shown by default when visiting /resourceName/
-	Raw     string `xml:"raw,attr"`     // "true" or "false" - treated as binary data
+	Src string `xml:"src,attr"` // The filename for the HTTP file (can be a path)
 }
+
+type AbsPath string
 
 // FileReference represents a file reference with its full path and reference type
 type FileReference struct {

@@ -4,7 +4,7 @@
 > This tool is created for learning purposes and may contain bugs or unexpected behavior.  
 > Use at your own risk and always test thoroughly before deploying the compiled resources.
 
-A command-line tool for compiling and bundling Lua scripts for Multi Theft Auto (MTA) servers. This tool processes MTA resources, compiles Lua scripts using [luac_mta](https://wiki.multitheftauto.com/wiki/Lua_compilation_API), and creates optimized bundles with configurable obfuscation levels.
+A command-line tool for compiling and bundling Multi Theft Auto (MTA) resources. This tool can process a single resource's (meta.xml) files or entire directories containing multiple resources, automatically discovering all meta.xml files recursively. It compiles Lua scripts using [luac_mta](https://wiki.multitheftauto.com/wiki/Lua_compilation_API), and creates optimized resource bundles with configurable obfuscation levels.
 
 ## Features
 
