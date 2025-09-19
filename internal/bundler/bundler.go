@@ -26,8 +26,7 @@ func NewResourceBundler(comp compiler.CLICompiler, options compiler.CompilationO
 
 // CompileResource compiles an MTA resource using either individual or merged mode
 func (rb ResourceBundler) CompileResource(r *resource.Resource, inputPath, outputFile string, mergeMode bool) error {
-	fmt.Printf("Compiling resource: %s\n", r.Name)
-	fmt.Printf("Base directory: %s\n", r.BaseDir)
+	logResourceStart(r.Name, r.BaseDir)
 
 	if mergeMode {
 		return rb.compileMerged(r, inputPath, outputFile)
@@ -41,11 +40,11 @@ func (rb ResourceBundler) compileIndividual(r *resource.Resource, inputPath, out
 	// Get all Lua script files
 	luaFiles := r.GetLuaFiles()
 	if len(luaFiles) == 0 {
-		fmt.Printf("  Warning: No Lua script files found in resource %s\n", r.Name)
+		logLuaFilesFound(0, r.Name)
 		return nil
 	}
 
-	fmt.Printf("  Found %d Lua script(s) to compile\n", len(luaFiles))
+	logLuaFilesFound(len(luaFiles), r.Name)
 
 	// Get absolute paths for calculation
 	absInputPath, err := filepath.Abs(inputPath)
@@ -76,25 +75,25 @@ func (rb ResourceBundler) compileIndividual(r *resource.Resource, inputPath, out
 	}
 
 	// Log file copy results
-	rb.printFileCopyResults(copyResult)
+	logFileCopyResults(copyResult)
 
 	// Compile each file individually while preserving directory structure
 	var successCount, errorCount int
 	totalStartTime := time.Now()
 
 	for _, fileRef := range luaFiles {
-		fmt.Printf("  Processing: %s\n", fileRef.RelativePath)
+		logFileProcessing(fileRef.RelativePath)
 
 		outputPath, err := r.CalculateOutputPath(absInputPath, outputFile, baseOutputDir, fileRef)
 		if err != nil {
-			fmt.Printf("    ✗ Failed to calculate output path: %v\n", err)
+			logPathCalculationError(fileRef.RelativePath, err)
 			errorCount++
 			continue
 		}
 
 		// Ensure output subdirectory exists
 		if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
-			fmt.Printf("    ✗ Failed to create output directory: %v\n", err)
+			logDirectoryCreationError(err)
 			errorCount++
 			continue
 		}
@@ -102,7 +101,7 @@ func (rb ResourceBundler) compileIndividual(r *resource.Resource, inputPath, out
 		// Compile the file
 		result, err := rb.compiler.CompileFile(fileRef.FullPath, outputPath, rb.options)
 		if err != nil {
-			fmt.Printf("    ✗ %s: %v\n", fileRef.RelativePath, err)
+			logFileError(fileRef.RelativePath, err)
 			errorCount++
 		} else if result.Success {
 			// Show relative output path from baseOutputDir
@@ -111,23 +110,10 @@ func (rb ResourceBundler) compileIndividual(r *resource.Resource, inputPath, out
 				relativeOutputPath = filepath.Base(outputPath)
 			}
 
-			// Format size information
-			sizeInfo := ""
-			if result.InputSize > 0 && result.OutputSize > 0 {
-				reduction := (1.0 - result.CompressionRatio()) * 100
-				if reduction > 0 {
-					sizeInfo = fmt.Sprintf(" [%s → %s, %.0f%% reduction]",
-						compiler.FormatSize(result.InputSize), compiler.FormatSize(result.OutputSize), reduction)
-				} else {
-					sizeInfo = fmt.Sprintf(" [%s → %s]",
-						compiler.FormatSize(result.InputSize), compiler.FormatSize(result.OutputSize))
-				}
-			}
-
-			fmt.Printf("    ✓ %s -> %s (%v)%s\n", fileRef.RelativePath, relativeOutputPath, result.CompileTime, sizeInfo)
+			logFileSuccess(fileRef.RelativePath, relativeOutputPath, result)
 			successCount++
 		} else {
-			fmt.Printf("    ✗ %s: %v\n", fileRef.RelativePath, result.Error)
+			logFileError(fileRef.RelativePath, result.Error)
 			errorCount++
 		}
 	}
@@ -152,13 +138,7 @@ func (rb ResourceBundler) compileIndividual(r *resource.Resource, inputPath, out
 		}
 	}
 
-	fmt.Printf("  Compilation completed: %d successful, %d errors\n", successCount, errorCount)
-	if totalInputSize > 0 && totalOutputSize > 0 && successCount > 0 {
-		reduction := (1.0 - float64(totalOutputSize)/float64(totalInputSize)) * 100
-		fmt.Printf("  Resource size summary: %s → %s (%.0f%% reduction)\n",
-			compiler.FormatSize(totalInputSize), compiler.FormatSize(totalOutputSize), reduction)
-	}
-	fmt.Printf("  Total time: %v\n", totalTime)
+	logIndividualCompilationSummary(successCount, errorCount, totalTime, totalInputSize, totalOutputSize)
 
 	if errorCount > 0 {
 		return fmt.Errorf("compilation completed with %d errors", errorCount)
@@ -177,12 +157,11 @@ func (rb ResourceBundler) compileMerged(r *resource.Resource, inputPath, outputF
 	allServerFiles := append(serverFiles, sharedFiles...)
 
 	if len(allClientFiles) == 0 && len(allServerFiles) == 0 {
-		fmt.Printf("  Warning: No Lua script files found in resource %s\n", r.Name)
+		logLuaFilesFound(0, r.Name)
 		return nil
 	}
 
-	fmt.Printf("  Found %d client script(s), %d server script(s), %d shared script(s)\n",
-		len(clientFiles), len(serverFiles), len(sharedFiles))
+	logMergedFilesFound(len(clientFiles), len(serverFiles), len(sharedFiles))
 
 	// Get absolute paths for calculation
 	absInputPath, err := filepath.Abs(inputPath)
@@ -212,7 +191,7 @@ func (rb ResourceBundler) compileMerged(r *resource.Resource, inputPath, outputF
 		return fmt.Errorf("failed to copy file references: %v", err)
 	}
 
-	rb.printFileCopyResults(copyResult)
+	logFileCopyResults(copyResult)
 
 	var successCount, errorCount int
 	totalStartTime := time.Now()
@@ -229,7 +208,7 @@ func (rb ResourceBundler) compileMerged(r *resource.Resource, inputPath, outputF
 
 		// Ensure output directory exists
 		if err := os.MkdirAll(filepath.Dir(clientOutputPath), 0755); err != nil {
-			fmt.Printf("    ✗ Failed to create client output directory: %v\n", err)
+			logMergedDirectoryCreationError("client", err)
 			errorCount++
 		} else {
 			// Get file paths for compilation
@@ -238,28 +217,16 @@ func (rb ResourceBundler) compileMerged(r *resource.Resource, inputPath, outputF
 				clientPaths = append(clientPaths, fileRef.FullPath)
 			}
 
-			fmt.Printf("  Compiling client files to client.luac...\n")
+			logMergedCompilationStart("client")
 			result, err := rb.compiler.Compile(clientPaths, clientOutputPath, rb.options)
 			if err != nil {
-				fmt.Printf("    ✗ Client compilation failed: %v\n", err)
+				logMergedCompilationError("client", err)
 				errorCount++
 			} else if result.Success {
-				// Format size information for merged client files
-				sizeInfo := ""
-				if result.InputSize > 0 && result.OutputSize > 0 {
-					reduction := (1.0 - result.CompressionRatio()) * 100
-					if reduction > 0 {
-						sizeInfo = fmt.Sprintf(" [%s → %s, %.0f%% reduction]",
-							compiler.FormatSize(result.InputSize), compiler.FormatSize(result.OutputSize), reduction)
-					} else {
-						sizeInfo = fmt.Sprintf(" [%s → %s, %.0f%% reduction]",
-							compiler.FormatSize(result.InputSize), compiler.FormatSize(result.OutputSize), reduction)
-					}
-				}
-				fmt.Printf("    ✓ Client compilation successful: client.luac (%v)%s\n", result.CompileTime, sizeInfo)
+				logMergedCompilationSuccess("client", result)
 				successCount++
 			} else {
-				fmt.Printf("    ✗ Client compilation failed: %v\n", result.Error)
+				logMergedCompilationError("client", result.Error)
 				errorCount++
 			}
 		}
@@ -277,7 +244,7 @@ func (rb ResourceBundler) compileMerged(r *resource.Resource, inputPath, outputF
 
 		// Ensure output directory exists
 		if err := os.MkdirAll(filepath.Dir(serverOutputPath), 0755); err != nil {
-			fmt.Printf("    ✗ Failed to create server output directory: %v\n", err)
+			logMergedDirectoryCreationError("server", err)
 			errorCount++
 		} else {
 			// Get file paths for compilation
@@ -286,36 +253,23 @@ func (rb ResourceBundler) compileMerged(r *resource.Resource, inputPath, outputF
 				serverPaths = append(serverPaths, fileRef.FullPath)
 			}
 
-			fmt.Printf("  Compiling server files to server.luac...\n")
+			logMergedCompilationStart("server")
 			result, err := rb.compiler.Compile(serverPaths, serverOutputPath, rb.options)
 			if err != nil {
-				fmt.Printf("    ✗ Server compilation failed: %v\n", err)
+				logMergedCompilationError("server", err)
 				errorCount++
 			} else if result.Success {
-				// Format size information for merged server files
-				sizeInfo := ""
-				if result.InputSize > 0 && result.OutputSize > 0 {
-					reduction := (1.0 - result.CompressionRatio()) * 100
-					if reduction > 0 {
-						sizeInfo = fmt.Sprintf(" [%s → %s, %.0f%% reduction]",
-							compiler.FormatSize(result.InputSize), compiler.FormatSize(result.OutputSize), reduction)
-					} else {
-						sizeInfo = fmt.Sprintf(" [%s → %s]",
-							compiler.FormatSize(result.InputSize), compiler.FormatSize(result.OutputSize))
-					}
-				}
-				fmt.Printf("    ✓ Server compilation successful: server.luac (%v)%s\n", result.CompileTime, sizeInfo)
+				logMergedCompilationSuccess("server", result)
 				successCount++
 			} else {
-				fmt.Printf("    ✗ Server compilation failed: %v\n", result.Error)
+				logMergedCompilationError("server", result.Error)
 				errorCount++
 			}
 		}
 	}
 
 	totalTime := time.Since(totalStartTime)
-	fmt.Printf("  Merge compilation completed: %d successful, %d errors\n", successCount, errorCount)
-	fmt.Printf("  Total time: %v\n", totalTime)
+	logMergedCompilationSummary(successCount, errorCount, totalTime)
 
 	if errorCount > 0 {
 		return fmt.Errorf("compilation completed with %d errors", errorCount)
@@ -324,18 +278,3 @@ func (rb ResourceBundler) compileMerged(r *resource.Resource, inputPath, outputF
 	return nil
 }
 
-// printFileCopyResults prints the results of file copy operations
-func (rb ResourceBundler) printFileCopyResults(result resource.FileCopyBatchResult) {
-	if result.TotalFiles == 0 {
-		return
-	}
-
-	fmt.Printf("  Copying %d non-script file(s)\n", result.TotalFiles)
-	for _, copyResult := range result.Results {
-		if copyResult.Success {
-			fmt.Printf("    ✓ Copied %s\n", copyResult.RelativePath)
-		} else {
-			fmt.Printf("    ✗ Failed to copy %s: %v\n", copyResult.RelativePath, copyResult.Error)
-		}
-	}
-}
