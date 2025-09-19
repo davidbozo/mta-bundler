@@ -20,17 +20,17 @@ type BinaryProvider interface {
 type LocalBinaryProvider struct{}
 
 // NewLocalBinaryProvider creates a new local binary provider
-func NewLocalBinaryProvider() *LocalBinaryProvider {
-	return &LocalBinaryProvider{}
+func NewLocalBinaryProvider() LocalBinaryProvider {
+	return LocalBinaryProvider{}
 }
 
 // Name returns the provider name
-func (p *LocalBinaryProvider) Name() string {
+func (p LocalBinaryProvider) Name() string {
 	return "local"
 }
 
 // GetBinary attempts to find the luac_mta binary locally
-func (p *LocalBinaryProvider) GetBinary() (string, error) {
+func (p LocalBinaryProvider) GetBinary() (string, error) {
 	var candidates []string
 
 	// Platform-specific binary names
@@ -70,17 +70,17 @@ func (p *LocalBinaryProvider) GetBinary() (string, error) {
 type WebBinaryProvider struct{}
 
 // NewWebBinaryProvider creates a new web binary provider
-func NewWebBinaryProvider() *WebBinaryProvider {
-	return &WebBinaryProvider{}
+func NewWebBinaryProvider() WebBinaryProvider {
+	return WebBinaryProvider{}
 }
 
 // Name returns the provider name
-func (p *WebBinaryProvider) Name() string {
+func (p WebBinaryProvider) Name() string {
 	return "web"
 }
 
 // GetBinary downloads and returns the luac_mta binary from MTA servers
-func (p *WebBinaryProvider) GetBinary() (string, error) {
+func (p WebBinaryProvider) GetBinary() (string, error) {
 	url, filename, err := p.getBinaryURL()
 	if err != nil {
 		return "", fmt.Errorf("failed to determine binary URL: %w", err)
@@ -115,7 +115,7 @@ func (p *WebBinaryProvider) GetBinary() (string, error) {
 }
 
 // getBinaryURL returns the download URL and filename based on the current OS and architecture
-func (p *WebBinaryProvider) getBinaryURL() (string, string, error) {
+func (p WebBinaryProvider) getBinaryURL() (string, string, error) {
 	switch runtime.GOOS {
 	case "windows":
 		return "https://luac.mtasa.com/files/windows/x86/luac_mta.exe", "luac_mta.exe", nil
@@ -134,7 +134,7 @@ func (p *WebBinaryProvider) getBinaryURL() (string, string, error) {
 }
 
 // downloadFile downloads a file from the given URL to the specified path
-func (p *WebBinaryProvider) downloadFile(url, filepath string) error {
+func (p WebBinaryProvider) downloadFile(url, filepath string) error {
 	// Create the file
 	out, err := os.Create(filepath)
 	if err != nil {
