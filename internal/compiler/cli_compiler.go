@@ -100,7 +100,6 @@ func (c CLICompiler) Compile(filePaths []string, outputPath string, options Comp
 	// Calculate output file size and update metrics
 	if outputSize, err := CalculateFileSize(outputPath); err == nil {
 		result.OutputSize = outputSize
-		UpdateSizeMetrics(result)
 	}
 
 	return result, nil
@@ -154,7 +153,6 @@ func (c CLICompiler) CompileFile(filePath string, outputPath string, options Com
 	// Calculate output file size and update metrics
 	if outputSize, err := CalculateFileSize(outputPath); err == nil {
 		result.OutputSize = outputSize
-		UpdateSizeMetrics(result)
 	}
 
 	return result, nil

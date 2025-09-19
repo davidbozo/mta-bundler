@@ -99,7 +99,7 @@ func (r *Resource) compileIndividual(comp compiler.CLICompiler, inputPath, outpu
 			// Format size information
 			sizeInfo := ""
 			if result.InputSize > 0 && result.OutputSize > 0 {
-				reduction := (1.0 - result.CompressionRatio) * 100
+				reduction := (1.0 - result.CompressionRatio()) * 100
 				if reduction > 0 {
 					sizeInfo = fmt.Sprintf(" [%s → %s, %.0f%% reduction]",
 						compiler.FormatSize(result.InputSize), compiler.FormatSize(result.OutputSize), reduction)
@@ -232,7 +232,7 @@ func (r *Resource) compileMerged(comp compiler.CLICompiler, inputPath, outputFil
 				// Format size information for merged client files
 				sizeInfo := ""
 				if result.InputSize > 0 && result.OutputSize > 0 {
-					reduction := (1.0 - result.CompressionRatio) * 100
+					reduction := (1.0 - result.CompressionRatio()) * 100
 					if reduction > 0 {
 						sizeInfo = fmt.Sprintf(" [%s → %s, %.0f%% reduction]",
 							compiler.FormatSize(result.InputSize), compiler.FormatSize(result.OutputSize), reduction)
@@ -280,7 +280,7 @@ func (r *Resource) compileMerged(comp compiler.CLICompiler, inputPath, outputFil
 				// Format size information for merged server files
 				sizeInfo := ""
 				if result.InputSize > 0 && result.OutputSize > 0 {
-					reduction := (1.0 - result.CompressionRatio) * 100
+					reduction := (1.0 - result.CompressionRatio()) * 100
 					if reduction > 0 {
 						sizeInfo = fmt.Sprintf(" [%s → %s, %.0f%% reduction]",
 							compiler.FormatSize(result.InputSize), compiler.FormatSize(result.OutputSize), reduction)

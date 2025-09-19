@@ -34,14 +34,13 @@ type CompilationOptions struct {
 
 // CompilationResult holds the result of a single file compilation operation
 type CompilationResult struct {
-	InputFile        string
-	OutputFile       string
-	Success          bool
-	Error            error
-	CompileTime      time.Duration
-	InputSize        int64   // Size before compilation in bytes
-	OutputSize       int64   // Size after compilation in bytes
-	CompressionRatio float64 // Compression ratio (0-1, where 0.2 = 20% of original size)
+	InputFile   string
+	OutputFile  string
+	Success     bool
+	Error       error
+	CompileTime time.Duration
+	InputSize   int64 // Size before compilation in bytes
+	OutputSize  int64 // Size after compilation in bytes
 }
 
 // LuaCompiler interface defines the contract for Lua compilation
@@ -76,11 +75,12 @@ func CalculateTotalSize(filePaths []string) (int64, error) {
 	return totalSize, nil
 }
 
-// UpdateSizeMetrics calculates and updates size-related metrics in the compilation result
-func UpdateSizeMetrics(result *CompilationResult) {
-	if result.InputSize > 0 && result.OutputSize > 0 {
-		result.CompressionRatio = float64(result.OutputSize) / float64(result.InputSize)
+// CompressionRatio returns the compression ratio (0-1, where 0.2 = 20% of original size)
+func (r *CompilationResult) CompressionRatio() float64 {
+	if r.InputSize > 0 && r.OutputSize > 0 {
+		return float64(r.OutputSize) / float64(r.InputSize)
 	}
+	return 0
 }
 
 // FormatSize formats a size in bytes to a human-readable string
