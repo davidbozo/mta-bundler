@@ -53,10 +53,10 @@ func (c CLICompiler) ValidateFiles(filePaths []string) error {
 }
 
 // Compile compiles multiple Lua files into a single merged output file
-func (c CLICompiler) Compile(filePaths []string, outputPath string, options CompilationOptions) (*CompilationResult, error) {
+func (c CLICompiler) Compile(filePaths []string, outputPath string, options CompilationOptions) (CompilationResult, error) {
 	startTime := time.Now()
 
-	result := &CompilationResult{
+	result := CompilationResult{
 		InputFile:  strings.Join(filePaths, ", "),
 		OutputFile: outputPath,
 	}
@@ -106,10 +106,10 @@ func (c CLICompiler) Compile(filePaths []string, outputPath string, options Comp
 }
 
 // CompileFile compiles a single Lua file
-func (c CLICompiler) CompileFile(filePath string, outputPath string, options CompilationOptions) (*CompilationResult, error) {
+func (c CLICompiler) CompileFile(filePath string, outputPath string, options CompilationOptions) (CompilationResult, error) {
 	startTime := time.Now()
 
-	result := &CompilationResult{
+	result := CompilationResult{
 		InputFile:  filePath,
 		OutputFile: outputPath,
 	}

@@ -46,9 +46,9 @@ type CompilationResult struct {
 // LuaCompiler interface defines the contract for Lua compilation
 type LuaCompiler interface {
 	// Compile compiles multiple Lua files into a single merged output file
-	Compile(filePaths []string, outputPath string, options CompilationOptions) (*CompilationResult, error)
+	Compile(filePaths []string, outputPath string, options CompilationOptions) (CompilationResult, error)
 	// CompileFile compiles a single Lua file to its individual output
-	CompileFile(filePath string, outputPath string, options CompilationOptions) (*CompilationResult, error)
+	CompileFile(filePath string, outputPath string, options CompilationOptions) (CompilationResult, error)
 	// ValidateFiles checks if all provided files exist and are valid
 	ValidateFiles(filePaths []string) error
 }
